@@ -110,6 +110,7 @@ jobs:
           terraform_root_path: ${{ inputs.terraform_root_path }}
           destroyResources: ${{ inputs.destroyResources }}
           tfvars_file: ${{ env.TF_VAR_FILE }}
+          github_token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: "Upload Artifact"
         id: upload

@@ -17,10 +17,36 @@ runs:
       run: |
         terraform show -json tfplan | jq '.' > tfplan.json
 
+    - name: Check for Checkov config
+      id: check-checkov-config
+      shell: bash
+      working-directory: ${{ inputs.terraform_root_path }}
+      run: |
+        CONFIG_FILE=".checkov.yml"
+        if [ ! -f "$CONFIG_FILE" ]; then
+          echo "Checkov config file ($CONFIG_FILE) not found in ${{ inputs.terraform_root_path }}. Copying default config."
+          # Copy the default config from the action's directory
+          cp "${{ github.action_path }}/$CONFIG_FILE" .
+          ls -la "$CONFIG_FILE"
+        else
+          echo "Using existing $CONFIG_FILE config file found in ${{ inputs.terraform_root_path }}."
+        fi
+
     - name: Terraform Scan with Checkov
       id: checkov-scan-action
       uses: bridgecrewio/checkov-action@v12
       with:
-        file: ${{ inputs.terraform_root_path }}/tfplan.json
-        repo_root_for_plan_enrichment: ${{ inputs.terraform_root_path }}
-        download_external_modules: true
+        config_file: ${{ inputs.terraform_root_path }}/.checkov.yml
+
+    - name: Upload SARIF file
+      uses: github/codeql-action/upload-sarif@v3
+      
+      # Results are generated only on a success or failure
+      # this is required since GitHub by default won't run the next step
+      # when the previous one has failed. Security checks that do not pass will 'fail'.
+      # An alternative is to add `continue-on-error: true` to the previous step
+      # Or 'soft_fail: true' to checkov.
+      if: success() || failure()
+      with:
+        category: iac
+        sarif_file: ${{ inputs.terraform_root_path }}/results.sarif

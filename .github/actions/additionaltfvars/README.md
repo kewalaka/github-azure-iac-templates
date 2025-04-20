@@ -1,7 +1,12 @@
 # Additional TF Vars Action
 
-This action will take a comma separated list of key=value string and separate them into variables for use in Terraform Deployments with the pattern
-`TF_VAR_<key>=<value>`. These will be set as environment variables for use by the Terraform plan and apply/destroy.
+> [!WARNING]
+> This approach should be used sparingly to pass in variables that need to be computed by previous steps,
+> most variables should be placed within tfvars or sourced from secrets management
+
+This action will take a comma separated list of key=value string and separate them into variables for use in Terraform Deployments with the pattern `TF_VAR_<key>=<value>`.
+
+These will be set as environment variables for use by the Terraform plan and apply/destroy.
 
 ## Inputs
 

@@ -1,14 +1,19 @@
-# IP Default Action
+# Unlock resource firewalls during CI
+
+> [!WARNING]
+> Using either self-hosted or managed runners is preferred to this mechanism.  This action temporarily modifies Azure resource firewall rules to grant access during deployment, and then closes the firewall afterwards.  Using an allow list on the resources is impractical given the large numbers of IP addresses that GitHub-hosted runners can originate from.  
 
 This action is run before and after the terraform init/plan/apply/destroy steps. This is required when using public runners to execute the terraform steps to allow access to the terraform state storage account and any key vaults and storage accounts specified in the EXTRA_FIREWALL_UNLOCKS. Full details of each parameter can be found in the powershell script `Update-IPDefaultAction.ps1`.
 
 ## Inputs
 
-OPERATION
-TF_STATE_SUBSCRIPTION_ID
-TF_STATE_RESOURCE_GROUP
-TF_STATE_BLOB_ACCOUNT
-EXTRA_FIREWALL_UNLOCKS
+| Name                       | Required | Description           | Default |
+| :------------------------- | :------- | --------------------- | :------ |
+| `OPERATION`                | `true`   | Specifies the default action and public endpoint. Valid values are `Allow` or `Deny`.  |         |
+| `TF_STATE_SUBSCRIPTION_ID` | `true`   | Specifies the subscription ID for the Terraform state storage account.  | |
+| `TF_STATE_RESOURCE_GROUP`  | `true`   | Specifies the resource group name for the Terraform state storage account. |  |
+| `TF_STATE_BLOB_ACCOUNT`    | `true`   | Specifies the name of the Terraform state storage account. |  |
+| `EXTRA_FIREWALL_UNLOCKS`   | `false`  | Specifies a JSON string defining additional resources (Key Vaults, Storage Accounts) to unlock. Can be in separate subscriptions. See script. | `''`  |
 
 ## Outputs
 
@@ -23,10 +28,15 @@ Marketplace actions:
 
 ## repository variable/env variables
 
-TF_STATE_SUBSCRIPTION_ID
-TF_STATE_RESOURCE_GROUP
-TF_STATE_BLOB_ACCOUNT
-EXTRA_FIREWALL_UNLOCKS
+| Name                       | Description  |
+| :------------------------- | :----------- |
+| `ARM_CLIENT_ID`            | Client ID of the identity performing the firewall update. |
+| `ARM_TENANT_ID`            | Tenant ID for Azure authentication.   |
+| `ARM_SUBSCRIPTION_ID`      | Default Azure subscription ID (used for login, though specific resources use `TF_STATE_SUBSCRIPTION_ID` or IDs within `EXTRA_FIREWALL_UNLOCKS`). |
+| `TF_STATE_SUBSCRIPTION_ID` | (Used indirectly via input) Subscription ID for the Terraform state storage account. |
+| `TF_STATE_RESOURCE_GROUP`  | (Used indirectly via input) Resource group name for the Terraform state storage account. |
+| `TF_STATE_BLOB_ACCOUNT`    | (Used indirectly via input) Name of the Terraform state storage account.|
+| `EXTRA_FIREWALL_UNLOCKS`   | (Used indirectly via input) JSON string defining additional resources to unlock. |
 
 ## Usage
 

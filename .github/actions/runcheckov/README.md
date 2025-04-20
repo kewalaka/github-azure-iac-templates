@@ -1,6 +1,6 @@
 # Run Checkov Terraform Scan
 
-This action is run just after a terraform plan and scans the terraform plan output for security issues with resource creation.
+This action scans the terraform plan output for security issues with resource creation.
 
 ## Inputs
 
@@ -15,6 +15,7 @@ none
 This action uses bash shell inline script.
 
 Marketplace actions:
+
 - bridgecrewio/checkov-action
 
 ## repository variable/env variables
@@ -33,7 +34,6 @@ In the calling workflow templates in this repository this action runs at the jus
   with:
     terraform_root_path: ${{ inputs.terraform_root_path }}
 ```
-
 
 ## Suppress errors
 
@@ -56,8 +56,8 @@ Otherwise create a `.checkov.yml` file at the root level of the repository (not 
 
 ```text
 Check: CKV_SECRET_6: "Base64 High Entropy String"
-	FAILED for resource: ba74cf8e3b29d889a051eb720a87c8962fb4b315
-Error: 	File: /iac/tfplan.json:442-443
+ FAILED for resource: ba74cf8e3b29d889a051eb720a87c8962fb4b315
+Error:  File: /iac/tfplan.json:442-443
 ```
 
 ```yml

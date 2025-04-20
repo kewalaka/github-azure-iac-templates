@@ -56,4 +56,40 @@ runs:
         unzip tfplandoc.zip
         mv tfplandoc_v* tfplandoc
         sudo install tfplandoc /usr/local/bin
-        terraform show -json tfplan | tfplandoc generate -
+        PLAN_SUMMARY=$(terraform show -json tfplan | tfplandoc generate -)
+
+        # Output summary to Actions log
+        echo "--- Plan Summary ---"
+        echo "$PLAN_SUMMARY"
+        echo "--- End Plan Summary ---"
+
+        # Set the multiline output for this step
+        echo "summary<<EOF" >> $GITHUB_OUTPUT
+        echo "$PLAN_SUMMARY" >> $GITHUB_OUTPUT
+        echo "EOF" >> $GITHUB_OUTPUT
+        echo "Plan summary set as step output."
+
+    - name: Post Plan Summary to PR
+      if: inputs.github_token != '' && github.event_name == 'pull_request'
+      uses: actions/github-script@v7
+      with:
+        github-token: ${{ inputs.github_token }}
+        script: |
+          // Access the output from the previous step directly
+          const planSummary = `${{ steps.tf-plan-show-action.outputs.summary }}`;
+          const runUrl = `${process.env.GITHUB_SERVER_URL}/${process.env.GITHUB_REPOSITORY}/actions/runs/${process.env.GITHUB_RUN_ID}`;
+
+          if (!planSummary || planSummary.trim() === '') {
+            console.log('Plan summary is empty, skipping comment.');
+            return;
+          }
+
+          const body = `## Terraform Plan Summary\n\n${planSummary}\n\n---\n*View full plan output in the [GitHub Actions run](${runUrl}).*`;
+
+          await github.rest.issues.createComment({
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            issue_number: context.issue.number,
+            body: body
+          });
+          console.log('Posted plan summary comment to PR #${context.issue.number}');        

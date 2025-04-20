@@ -1,0 +1,42 @@
+name: 'Ensure Terraform Backend Exists'
+description: 'Checks for/creates secure Azure Storage Account & Containers within an existing resource group, and grants necessary container RBAC.'
+
+inputs:
+  resource_group_name:
+    description: 'Name of the existing Resource Group for the backend.'
+    required: true
+  storage_account_name:
+    description: 'Name of the Storage Account for the backend (max 24 chars, lowercase alphanumeric).'
+    required: true
+  state_container_name:
+    description: 'Name of the container for Terraform state.'
+    required: true
+    default: 'tfstate'
+  artifact_container_name:
+    description: 'Name of the container for Terraform plan artifacts.'
+    required: true
+    default: 'tfartifact'
+
+runs:
+  using: "composite"
+  steps:
+    - name: Login to Azure
+      uses: azure/login@v1
+      with:
+        client-id: ${{ env.ARM_CLIENT_ID }}
+        tenant-id: ${{ env.ARM_TENANT_ID }}
+        subscription-id: ${{ env.TF_STATE_SUBSCRIPTION_ID }}
+        enable-AzPSSession: true
+
+    - name: Ensure Terraform Backend Storage and RBAC
+      uses: azure/powershell@v2
+      with:
+        # Use inlineScript to call the external script, passing parameters
+        inlineScript: |
+          ${{ github.action_path }}/Deploy-TerraformBackend.ps1 `
+            -ResourceGroupName '${{ inputs.resource_group_name }}' `
+            -StorageAccountName '${{ inputs.storage_account_name }}' `
+            -StateContainerName '${{ inputs.state_container_name }}' `
+            -ArtifactContainerName '${{ inputs.artifact_container_name }}'
+        azPSVersion: "latest"
+        errorActionPreference: Stop # Ensure script errors fail the step

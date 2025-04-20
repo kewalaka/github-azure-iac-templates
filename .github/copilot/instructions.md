@@ -20,6 +20,14 @@ This repository provides reusable GitHub Actions workflows and composite actions
 7. **Structure:** Comprises reusable workflows (`*-template.yml`) which call composite actions (under `.github/actions/`).
 8. **Versioning:** Workflows and actions should be referenced using version tags (e.g., `@v1.0`) in consuming workflows for stability.
 9. **Usage:** Intended to be called from other repositories using the `uses:` syntax (e.g., `uses: org/repo/.github/workflows/terraform-deploy-template.yml@v1.0`). Requires appropriate repository/organization access settings for private repositories.
+10. **Common Workflow Pattern:** While `workflow_dispatch` is supported for manual runs, a primary use case is a CI/CD flow:
+    * Run `terraform plan` (using `terraform-deploy-template.yml` with `terraform_action: plan`) on `pull_request` events targeting the main branch. This typically uses the `_plan` environment.
+    * Run `terraform apply` (using `terraform-deploy-template.yml` with `terraform_action: apply`) on `push` events to the main branch (i.e., merges). This uses the `_apply` environment, which should have protection rules.
+
+11. **PR Plan Commenting:** The `terraformplan` composite action includes optional functionality to post a plan summary (from `tfplandoc`) as a comment on Pull Requests.
+    * This only activates if the workflow is triggered by a `pull_request` event.
+    * It requires the `github_token` input to be passed to the `terraformplan` action (typically `${{ secrets.GITHUB_TOKEN }}` from the calling workflow).
+    * The **top-level workflow** that initiates the run (e.g., the one triggering on `pull_request`) **must** have `permissions: pull-requests: write` defined for the comment posting to succeed.
 
 ## When Assisting
 
