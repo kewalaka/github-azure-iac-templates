@@ -4,9 +4,11 @@ This action is used to login to AKS for kubernetes terraform provider or k8s man
 
 ## Inputs
 
-subscription_id
-resource_group
-cluster_name
+| Name              | Required | Description                                    | Default |
+| :---------------- | :------- | :--------------------------------------------- | :------ |
+| `subscription_id` | `true`   | Specifies the subscription ID for the AKS cluster. |  |
+| `resource_group`  | `true`   | Specifies the resource group for the AKS cluster. |  |
+| `cluster_name`    | `true`   | Specifies the Name for the AKS cluster.        |  |
 
 ## Outputs
 
@@ -24,8 +26,12 @@ Marketplace actions:
 
 ## repository variable/env variables
 
-ARM_CLIENT_ID
-ARM_TENANT_ID
+This action relies on the following environment variables being set in the calling workflow's job for Azure authentication:
+
+| Name            | Description                          |
+| :-------------- | :----------------------------------- |
+| `ARM_CLIENT_ID` | Client ID of the deploying identity. |
+| `ARM_TENANT_ID` | Tenant ID for Azure authentication.  |
 
 ## Usage
 

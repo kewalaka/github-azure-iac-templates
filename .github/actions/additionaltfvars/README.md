@@ -10,7 +10,9 @@ These will be set as environment variables for use by the Terraform plan and app
 
 ## Inputs
 
-tfvar-list
+| Name           | Required | Description                                                      | Default |
+| :------------- | :------- | :--------------------------------------------------------------- | :------ |
+| `tfvar-list`   | `true`   | Comma-separated list of extra variables in the form `key=value`. |         |
 
 ## Outputs
 
@@ -22,7 +24,11 @@ This action uses pwsh shell inline script.
 
 ## repository variable/env variables
 
-EXTRA_TF_VARS
+This action uses the following environment variable via the `tfvar-list` input:
+
+| Name            | Description                                                              |
+| :-------------- | :----------------------------------------------------------------------- |
+| `EXTRA_TF_VARS` | Comma-separated `key=value` pairs to be set as `TF_VAR_<key>` variables. |
 
 ## Usage
 

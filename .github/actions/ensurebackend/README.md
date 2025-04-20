@@ -13,20 +13,22 @@ This composite action checks for the existence of the required Azure Storage Acc
 
 ## Inputs
 
-| Name                    | Required | Description                                                                          | Default      |
-| :---------------------- | :------- | :----------------------------------------------------------------------------------- | :----------- |
-| `resource_group_name`   | `true`   | Name of the **existing** Resource Group for the backend.                             |              |
-| `storage_account_name`  | `true`   | Name of the Storage Account for the backend (max 24 chars, lowercase alphanumeric). |              |
-| `state_container_name`  | `true`   | Name of the container for Terraform state.                                           | `tfstate`    |
-| `artifact_container_name` | `true`   | Name of the container for Terraform plan artifacts.                                  | `tfartifact` |
+| Name                    | Required | Description                                  | Default      |
+| :---------------------- | :------- | :------------------------------------------- | :----------- |
+| `resource_group_name`   | `true`   | Name of the **existing** Resource Group for the backend. | |
+| `storage_account_name`  | `true`   | Name of the Storage Account for the backend (max 24 chars, lowercase alphanumeric). |  |
+| `state_container_name`  | `true`   | Name of the container for Terraform state.   | `tfstate` |
+| `artifact_container_name` | `true` | Name of the container for Terraform plan artifacts. | `tfartifact` |
 
 ## Environment Variables Used
 
 This action relies on the following environment variables being set in the calling workflow's job (typically sourced from GitHub Environment variables):
 
-* `ARM_CLIENT_ID`: Client ID of the identity performing the check/creation.
-* `ARM_TENANT_ID`: Tenant ID for Azure authentication.
-* `TF_STATE_SUBSCRIPTION_ID`: Subscription ID where the backend resources reside.
+| Name                       | Description                                                      |
+| :------------------------- | :--------------------------------------------------------------- |
+| `ARM_CLIENT_ID`            | Client ID of the identity performing the check/creation.         |
+| `ARM_TENANT_ID`            | Tenant ID for Azure authentication.                              |
+| `TF_STATE_SUBSCRIPTION_ID` | Subscription ID where the backend resources reside.              |
 
 ## Example Usage
 

@@ -6,12 +6,12 @@ Optionally, if triggered by a `pull_request` event and provided with a suitable 
 
 ## Inputs
 
-| Name                  | Required | Description  | Default   |
-| :-------------------- | :------- | ------------ | :-------- |
-| `terraform_root_path` | `true`   | Relative path to the root of the Terraform code (usually `./iac`). | |
-| `tfvars_file`         | `true`   | Comma-separated list of paths to optional tfvars files. Paths are relative to the `terraform_root_path`.  |  |
-| `destroyResources`    | `false`  | Set to `true` to generate a destroy plan instead of a standard plan. | `'false'` |
-| `github_token`        | `false`  | GitHub token (`secrets.GITHUB_TOKEN`) used for posting plan summaries to Pull Requests. Required for PR commenting. | `''` |
+| Name                  | Required | Description                                                                                                | Default   |
+| :-------------------- | :------- | :--------------------------------------------------------------------------------------------------------- | :-------- |
+| `terraform_root_path` | `true`   | Relative path to the root of the Terraform code (usually `./iac`).                                         |           |
+| `tfvars_file`         | `true`   | Comma-separated list of paths to optional tfvars files. Paths are relative to the `terraform_root_path`. |           |
+| `destroyResources`    | `false`  | Set to `true` to generate a destroy plan instead of a standard plan.                                       | `'false'` |
+| `github_token`        | `false`  | GitHub token (`secrets.GITHUB_TOKEN`) used for posting plan summaries to Pull Requests. Required for PR commenting. | `''`      |
 
 ## Outputs
 
@@ -31,7 +31,11 @@ None. (The plan summary is printed to logs and optionally posted as a PR comment
 
 ## Repository Variable/Env Variables
 
-* `TF_VAR_FILE`: (Used indirectly via the `tfvars_file` input) Defines the variable files for the plan.
+This action uses the following environment variable indirectly via the `tfvars_file` input:
+
+| Name          | Description                                    |
+| :------------ | :--------------------------------------------- |
+| `TF_VAR_FILE` | Defines the variable files passed to the plan. |
 
 ## Usage
 

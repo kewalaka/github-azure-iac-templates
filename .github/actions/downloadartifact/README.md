@@ -4,9 +4,11 @@ This action is run before a terraform apply and downloads the build artifact to 
 
 ## Inputs
 
-TF_STATE_SUBSCRIPTION_ID
-TF_STATE_BLOB_ACCOUNT
-ARTIFACT_BLOB_CONTAINER
+| Name                       | Required | Description                                       | Default      |
+| :------------------------- | :------- | :------------------------------------------------ | :----------- |
+| `TF_STATE_SUBSCRIPTION_ID` | `true`   | Specifies the subscription ID for the Terraform state storage account. | |
+| `TF_STATE_BLOB_ACCOUNT`    | `true`   | Specifies the Terraform storage account name.     |  |
+| `ARTIFACT_BLOB_CONTAINER`  | `false`  | Specifies the container name where the artifact resides. | `tfartifact` |
 
 ## Outputs
 
@@ -23,9 +25,20 @@ Marketplace actions:
 
 ## repository variable/env variables
 
-TF_STATE_SUBSCRIPTION_ID
-TF_STATE_BLOB_ACCOUNT
-ARTIFACT_BLOB_CONTAINER
+This action relies on the following environment variables being set in the calling workflow's job for Azure authentication:
+
+| Name                  | Description                         |
+| :-------------------- | :---------------------------------- |
+| `ARM_CLIENT_ID`       | Client ID of the deploying identity. |
+| `ARM_TENANT_ID`       | Tenant ID for Azure authentication. |
+
+The following are used indirectly via inputs:
+
+| Name                       | Description                                                    |
+| :------------------------- | :------------------------------------------------------------- |
+| `TF_STATE_SUBSCRIPTION_ID` | Subscription ID for the Terraform state storage account.       |
+| `TF_STATE_BLOB_ACCOUNT`    | Terraform storage account name.                                |
+| `ARTIFACT_BLOB_CONTAINER`  | Container name where the artifact resides.                     |
 
 ## Usage
 

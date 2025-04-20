@@ -4,7 +4,9 @@ This action scans the terraform plan output for security issues with resource cr
 
 ## Inputs
 
-terraform_root_path
+| Name                  | Required | Description                                                      | Default |
+| :-------------------- | :------- | :--------------------------------------------------------------- | :------ |
+| `terraform_root_path` | `true`   | Relative path to root of Terraform code (usually `./iac`).       |         |
 
 ## Outputs
 

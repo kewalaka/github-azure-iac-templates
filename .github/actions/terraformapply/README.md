@@ -4,8 +4,10 @@ This action is run just after a terraform init and performs the actions in the t
 
 ## Inputs
 
-terraform_root_path
-destroyResources
+| Name                  | Required | Description                                                      | Default |
+| :-------------------- | :------- | :--------------------------------------------------------------- | :------ |
+| `terraform_root_path` | `true`   | Relative path to root of Terraform code (usually `./iac`).       |         |
+| `destroyResources`    | `true`   | Set to `true` if applying a destroy plan.                        |         |
 
 ## Outputs
 

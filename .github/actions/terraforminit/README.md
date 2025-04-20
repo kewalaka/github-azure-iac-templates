@@ -4,7 +4,9 @@ This action is run just before the terraform plan/apply/destroy steps and initia
 
 ## Inputs
 
-terraform_root_path
+| Name                  | Required | Description                                                      | Default |
+| :-------------------- | :------- | :--------------------------------------------------------------- | :------ |
+| `terraform_root_path` | `true`   | Relative path to root of Terraform code (usually `./iac`).       |         |
 
 ## Outputs
 
@@ -16,11 +18,15 @@ This action uses bash shell inline script.
 
 ## repository variable/env variables
 
-TF_STATE_SUBSCRIPTION_ID
-TF_STATE_RESOURCE_GROUP
-TF_STATE_BLOB_ACCOUNT
-TF_STATE_BLOB_CONTAINER
-TF_BLOB_FILE
+This action uses the following environment variables directly in the `terraform init` command:
+
+| Name                       | Description                                    |
+| :------------------------- | :--------------------------------------------- |
+| `TF_STATE_SUBSCRIPTION_ID` | Subscription ID for the state storage account. |
+| `TF_STATE_RESOURCE_GROUP`  | Resource group for the state storage account.  |
+| `TF_STATE_BLOB_ACCOUNT`    | Name of the state storage account.             |
+| `TF_STATE_BLOB_CONTAINER`  | Container name for the state file.             |
+| `TF_BLOB_FILE`             | Name/key of the state file within the container. |
 
 ## Usage
 

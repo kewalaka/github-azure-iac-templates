@@ -4,8 +4,10 @@ This action is run just after a terraform init and before the plan and runs tfli
 
 ## Inputs
 
-terraform_root_path
-tfvars_file
+| Name                  | Required | Description                  | Default |
+| :-------------------- | :------- | :--------------------------- | :------ |
+| `terraform_root_path` | `true`   | Relative path to root of Terraform code (usually `./iac`).  |  |
+| `tfvars_file`         | `true`   | Comma-separated list of paths to optional tfvars files. Paths are relative to the `terraform_root_path`. | |
 
 ## Outputs
 
@@ -17,7 +19,11 @@ This action uses bash shell inline script. It also downloads tflint and scans th
 
 ## repository variable/env variables
 
-TF_VAR_FILE
+This action uses the following environment variable indirectly via the `tfvars_file` input:
+
+| Name          | Description                                    |
+| :------------ | :--------------------------------------------- |
+| `TF_VAR_FILE` | Defines the variable files passed to `tflint`. |
 
 ## Usage
 
