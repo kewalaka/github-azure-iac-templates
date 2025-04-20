@@ -1,0 +1,51 @@
+# filepath: /.github/actions/bicep-scan/action.yml
+name: 'Bicep Scan (Checkov)'
+description: 'Builds Bicep to ARM JSON and scans with Checkov'
+
+inputs:
+  bicep_file_path:
+    description: 'Path to the main Bicep file'
+    required: true
+  bicep_root_path:
+    description: 'Root path for Bicep files and output artifacts'
+    required: true
+  # compiled_arm_path: # Optional: Use if validate step already built the JSON
+  #   description: 'Path to the pre-compiled ARM template JSON'
+  #   required: false
+  #   default: ''
+
+runs:
+  using: "composite"
+  steps:
+    - name: Install Checkov
+      shell: bash
+      run: |
+        pip install checkov # Or use docker image etc.
+
+    - name: Build Bicep to ARM JSON
+      # Only run if compiled_arm_path is not provided
+      # if: inputs.compiled_arm_path == ''
+      shell: bash
+      working-directory: ${{ inputs.bicep_root_path }}
+      run: |
+        echo "Building Bicep to ARM JSON..."
+        az bicep build --file ${{ inputs.bicep_file_path }} --outfile compiled.arm.json
+        echo "COMPILED_ARM_JSON=${{ inputs.bicep_root_path }}/compiled.arm.json" >> $GITHUB_ENV
+
+    - name: Run Checkov Scan
+      shell: bash
+      working-directory: ${{ inputs.bicep_root_path }}
+      run: |
+        # Use compiled_arm_path if provided, otherwise use the one built in previous step
+        # SCAN_TARGET=${{ inputs.compiled_arm_path || env.COMPILED_ARM_JSON }}
+        SCAN_TARGET=${{ env.COMPILED_ARM_JSON }} # Simplified for now
+        echo "Scanning $SCAN_TARGET with Checkov..."
+        # Add --config-file logic if needed, similar to Terraform Checkov action
+        checkov -f "$SCAN_TARGET" --output sarif > results.sarif || echo "Checkov found issues."
+
+    - name: Upload SARIF file
+      if: success() || failure() # Upload even if Checkov fails
+      uses: github/codeql-action/upload-sarif@v3
+      with:
+        category: bicep-iac
+        sarif_file: ${{ inputs.bicep_root_path }}/results.sarif

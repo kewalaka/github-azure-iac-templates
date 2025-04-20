@@ -43,7 +43,7 @@ permissions:
 jobs:
   terraform-plan:
     name: "Run terraform plan${{ inputs.destroyResources && ' destroy' || '' }} for ${{ inputs.plan_target_environment }}"
-    uses: kewalaka/github-azure-iac-templates/.github/workflows/terraform-plan-template.yml@main
+    uses: ./.github/workflows/terraform-plan-template.yml
     with:
       runner_name: ${{ inputs.runner_name }}
       target_environment: ${{ inputs.plan_target_environment }}
@@ -59,7 +59,7 @@ jobs:
     needs: terraform-plan
     name: "Run terraform${{ inputs.destroyResources && ' destroy' || ' apply' }} for ${{ inputs.apply_target_environment }}"
     if: ${{ contains(fromJSON('["destroy", "apply"]'), inputs.terraform_action) }}
-    uses: kewalaka/github-azure-iac-templates/.github/workflows/terraform-apply-template.yml@main
+    uses: ./.github/workflows/terraform-apply-template.yml
     with:
       runner_name: ${{ inputs.runner_name }}
       target_environment: ${{ inputs.apply_target_environment }}

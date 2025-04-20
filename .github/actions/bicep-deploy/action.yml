@@ -1,0 +1,44 @@
+# filepath: /.github/actions/bicep-deploy/action.yml
+name: 'Bicep Deployment Stack Deploy'
+description: 'Runs az deployment stack deploy'
+
+inputs:
+  deployment_scope:
+    description: 'Scope: resourceGroup or subscription'
+    required: true
+  deployment_stack_name:
+    description: 'Name for the Deployment Stack'
+    required: true
+  bicep_file_path:
+    description: 'Path to the main Bicep file'
+    required: true
+  parameters_file_path:
+    description: 'Path to the Bicep parameters file'
+    required: true
+  resource_group_name:
+    description: 'Azure Resource Group name (if scope is resourceGroup)'
+    required: false
+    default: ''
+  location:
+    description: 'Azure region'
+    required: true
+
+runs:
+  using: "composite"
+  steps:
+    - name: Run Deploy
+      shell: bash
+      run: |
+        echo "Running Bicep Deploy..."
+        cmd="az deployment stack ${{ inputs.deployment_scope }} deploy"
+        cmd+=" --name ${{ inputs.deployment_stack_name }}"
+        cmd+=" --template-file ${{ inputs.bicep_file_path }}"
+        cmd+=" --parameters ${{ inputs.parameters_file_path }}"
+        cmd+=" --location ${{ inputs.location }}"
+        cmd+=" --yes" # Auto-confirm deployment
+        cmd+=" --deny-settings-mode none" # Adjust as needed
+        if [[ "${{ inputs.deployment_scope }}" == "resourceGroup" ]]; then
+          cmd+=" --resource-group ${{ inputs.resource_group_name }}"
+        fi
+        echo "Executing: $cmd"
+        $cmd

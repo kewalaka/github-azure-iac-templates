@@ -1,0 +1,27 @@
+# filepath: /.github/actions/bicep-lint/action.yml
+name: 'Bicep Lint'
+description: 'Runs az bicep lint'
+
+inputs:
+  bicep_root_path:
+    description: 'Directory containing bicepconfig.json and source files'
+    required: true
+  bicep_file_path:
+    description: 'Path to the main Bicep file to lint'
+    required: true
+
+runs:
+  using: "composite"
+  steps:
+    - name: Run Bicep Lint
+      shell: bash
+      working-directory: ${{ inputs.bicep_root_path }}
+      run: |
+        echo "Running Bicep Lint on ${{ inputs.bicep_file_path }}..."
+        # Add logic here to check for bicepconfig.json and copy default if needed
+        # Example:
+        # if [ ! -f "bicepconfig.json" ]; then
+        #   echo "bicepconfig.json not found, consider adding one."
+        #   # cp ${{ github.action_path }}/default.bicepconfig.json .
+        # fi
+        az bicep lint --file ${{ inputs.bicep_file_path }}
