@@ -53,7 +53,7 @@ jobs:
         ARM_USE_AZUREAD: true
         ARM_USE_OIDC: true
         ## backend vars
-        TF_SUBSCRIPTION_ID: ${{ vars.TF_SUBSCRIPTION_ID != '' && vars.TF_SUBSCRIPTION_ID || ( vars.AZURE_SUBSCRIPTION_ID != '' && vars.AZURE_SUBSCRIPTION_ID || inputs.azure_subscription_id )}}
+        TF_STATE_SUBSCRIPTION_ID: ${{ vars.TF_STATE_SUBSCRIPTION_ID != '' && vars.TF_STATE_SUBSCRIPTION_ID || ( vars.AZURE_SUBSCRIPTION_ID != '' && vars.AZURE_SUBSCRIPTION_ID || inputs.azure_subscription_id )}}
         TF_STATE_RESOURCE_GROUP: ${{ vars.TF_STATE_RESOURCE_GROUP }}
         TF_STATE_BLOB_ACCOUNT: ${{ vars.TF_STATE_BLOB_ACCOUNT }}
         TF_STATE_BLOB_CONTAINER: ${{ vars.TF_STATE_BLOB_CONTAINER || 'tfstate' }}
@@ -72,7 +72,7 @@ jobs:
         uses: kewalaka/github-azure-iac-templates/.github/actions/ipdefault@main
         with:
           OPERATION: "Allow"
-          TF_SUBSCRIPTION_ID: ${{ env.TF_SUBSCRIPTION_ID  }}
+          TF_STATE_SUBSCRIPTION_ID: ${{ env.TF_STATE_SUBSCRIPTION_ID  }}
           TF_STATE_RESOURCE_GROUP: ${{ env.TF_STATE_RESOURCE_GROUP }}
           TF_STATE_BLOB_ACCOUNT: ${{ env.TF_STATE_BLOB_ACCOUNT }}
           EXTRA_FIREWALL_UNLOCKS: "${{ env.EXTRA_FIREWALL_UNLOCKS }}"
@@ -117,7 +117,7 @@ jobs:
         uses: kewalaka/github-azure-iac-templates/.github/actions/createartifact@main
         with:
           terraform_root_path: ${{ inputs.terraform_root_path }}
-          TF_SUBSCRIPTION_ID: ${{ env.TF_SUBSCRIPTION_ID }}
+          TF_STATE_SUBSCRIPTION_ID: ${{ env.TF_STATE_SUBSCRIPTION_ID }}
           TF_STATE_BLOB_ACCOUNT: ${{ env.TF_STATE_BLOB_ACCOUNT }}
           ARTIFACT_BLOB_CONTAINER: ${{ env.ARTIFACT_BLOB_CONTAINER }}
 
@@ -133,7 +133,7 @@ jobs:
         uses: kewalaka/github-azure-iac-templates/.github/actions/ipdefault@main
         with:
           OPERATION: "Deny"
-          TF_SUBSCRIPTION_ID: ${{ env.TF_SUBSCRIPTION_ID  }}
+          TF_STATE_SUBSCRIPTION_ID: ${{ env.TF_STATE_SUBSCRIPTION_ID  }}
           TF_STATE_RESOURCE_GROUP: ${{ env.TF_STATE_RESOURCE_GROUP }}
           TF_STATE_BLOB_ACCOUNT: ${{ env.TF_STATE_BLOB_ACCOUNT }}
           EXTRA_FIREWALL_UNLOCKS: "${{ env.EXTRA_FIREWALL_UNLOCKS }}"

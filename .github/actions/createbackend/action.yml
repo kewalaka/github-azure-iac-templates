@@ -1,0 +1,175 @@
+name: 'Ensure Terraform Backend Exists'
+description: 'Checks for/creates secure Azure backend (RG, Storage Account, Containers) and grants RBAC to the deploying identity.'
+
+inputs:
+  resource_group_name:
+    description: 'Name of the Resource Group for the backend.'
+    required: true
+  storage_account_name:
+    description: 'Name of the Storage Account for the backend (max 24 chars, lowercase alphanumeric).'
+    required: true
+  location:
+    description: 'Azure region for the backend resources (e.g., newzealandnorth).'
+    required: true
+  state_container_name:
+    description: 'Name of the container for Terraform state.'
+    required: true
+    default: 'tfstate'
+  artifact_container_name:
+    description: 'Name of the container for Terraform plan artifacts.'
+    required: true
+    default: 'tfartifact'
+  grant_rbac_roles_on_rg:
+    description: 'Grant Contributor & RBAC Admin roles on the RG to the deploying identity?'
+    required: false
+    default: 'true'
+
+runs:
+  using: "composite"
+  steps:
+    - name: Login to Azure
+      uses: azure/login@v1
+      with:
+        client-id: ${{ env.ARM_CLIENT_ID }}
+        tenant-id: ${{ env.ARM_TENANT_ID }}
+        subscription-id: ${{ env.TF_STATE_SUBSCRIPTION_ID }}
+        enable-AzPSSession: true
+
+    - name: Ensure Terraform Backend Resources and RBAC
+      uses: azure/powershell@v1
+      with:
+        inlineScript: |
+          param(
+              [string]$ResourceGroupName = '${{ inputs.resource_group_name }}',
+              [string]$StorageAccountName = '${{ inputs.storage_account_name }}',
+              [string]$Location = '${{ inputs.location }}',
+              [string]$StateContainerName = '${{ inputs.state_container_name }}',
+              [string]$ArtifactContainerName = '${{ inputs.artifact_container_name }}',
+              [boolean]$GrantRbACOnRG = [System.Convert]::ToBoolean('${{ inputs.grant_rbac_roles_on_rg }}')
+          )
+
+          $ErrorActionPreference = 'Stop'
+          $VerbosePreference = 'Continue'
+          $storageSKU = 'Standard_LRS' # Or consider Standard_ZRS for production
+          $tags = @{ Purpose = "Terraform Backend" }
+
+          # Helper function for RBAC assignment
+          function Grant-RBACRole {
+              param(
+                  [string]$PrincipalId,
+                  [string]$Scope,
+                  [string]$RoleDefinitionName
+              )
+              $assignment = Get-AzRoleAssignment -ObjectId $PrincipalId -Scope $Scope -RoleDefinitionName $RoleDefinitionName -ErrorAction SilentlyContinue
+              if ($null -eq $assignment) {
+                  Write-Host "Granting role '$RoleDefinitionName' to Principal '$PrincipalId' at scope '$Scope'"
+                  New-AzRoleAssignment -ObjectId $PrincipalId -Scope $Scope -RoleDefinitionName $RoleDefinitionName
+              } else {
+                  Write-Host "Role '$RoleDefinitionName' already exists for Principal '$PrincipalId' at scope '$Scope'"
+              }
+          }
+
+          Write-Host "Ensuring Terraform backend resources exist in location '$Location'..."
+          Write-Host "Deploying Identity Client ID: $env:ARM_CLIENT_ID"
+
+          # Get Principal ID of the deploying identity
+          $deployPrincipal = Get-AzADServicePrincipal -Filter "appId eq '$env:ARM_CLIENT_ID'" -ErrorAction SilentlyContinue
+          if ($null -eq $deployPrincipal) {
+              Write-Error "Could not find Service Principal with Application (Client) ID '$env:ARM_CLIENT_ID'. Ensure it exists and the logged-in identity has permission to read it."
+              exit 1 # Exit script, which fails the step due to errorActionPreference: Stop
+          }
+          $deployPrincipalId = $deployPrincipal.Id
+          Write-Host "Found deploying identity Principal ID: $deployPrincipalId"
+
+          # Ensure Resource Group
+          $rg = Get-AzResourceGroup -Name $ResourceGroupName -ErrorAction SilentlyContinue
+          if ($null -eq $rg) {
+              Write-Host "Creating Resource Group: '$ResourceGroupName' in location '$Location'"
+              $rg = New-AzResourceGroup -Name $ResourceGroupName -Location $Location -Tag $tags
+          } else {
+              Write-Host "Resource Group '$ResourceGroupName' already exists."
+          }
+          $rgScope = $rg.ResourceId
+
+          # Ensure Storage Account (check name availability first)
+          $nameCheck = Get-AzStorageAccountNameAvailability -Name $StorageAccountName
+          if (-not $nameCheck.NameAvailable) {
+              $saCheck = Get-AzStorageAccount -ResourceGroupName $ResourceGroupName -Name $StorageAccountName -ErrorAction SilentlyContinue
+              if ($null -eq $saCheck) {
+                  Write-Error "Storage account name '$StorageAccountName' is unavailable. Reason: $($nameCheck.Message)"
+                  exit 1
+              }
+              Write-Host "Storage Account '$StorageAccountName' already exists. Verifying settings..."
+              $sa = $saCheck
+              # Temporarily enable shared key access if it exists but is disabled
+              if ($sa.AllowSharedKeyAccess -eq $false) {
+                  Write-Host "Temporarily enabling shared key access on existing account '$StorageAccountName' for setup."
+                  Set-AzStorageAccount -ResourceGroupName $ResourceGroupName -Name $StorageAccountName -AllowSharedKeyAccess $true | Out-Null
+              }
+          } else {
+              Write-Host "Creating Storage Account: '$StorageAccountName'"
+              $saParams = @{
+                  ResourceGroupName      = $ResourceGroupName
+                  Name                   = $StorageAccountName
+                  Location               = $Location
+                  SkuName                = $storageSKU
+                  Kind                   = 'StorageV2'
+                  AccessTier             = 'Hot'
+                  EnableHttpsTrafficOnly = $true
+                  EnableLocalUser        = $false # Disable basic auth/local users
+                  AllowBlobPublicAccess  = $false # Disable anonymous access
+                  AllowSharedKeyAccess   = $true  # Enable temporarily for container creation
+                  MinimumTlsVersion      = 'TLS1_2'
+                  Tag                    = $tags
+              }
+              $sa = New-AzStorageAccount @saParams
+          }
+
+          # Configure Blob Service Properties (Versioning, Retention)
+          Write-Host "Configuring Blob Service properties for '$StorageAccountName' (Versioning, Retention)"
+          Update-AzStorageBlobServiceProperty -ResourceGroupName $ResourceGroupName -StorageAccountName $StorageAccountName -IsVersioningEnabled $true -EnableChangeFeed $false | Out-Null
+          # Set delete retention (e.g., 7 days) - required for versioning
+          Enable-AzStorageBlobDeleteRetentionPolicy -ResourceGroupName $ResourceGroupName -StorageAccountName $StorageAccountName -RetentionDays 7 -AllowPermanentDelete:$false | Out-Null
+
+          # Get Storage Context using Account Key (needed for initial container creation)
+          $accountKey = (Get-AzStorageAccountKey -ResourceGroupName $ResourceGroupName -Name $StorageAccountName)[0].Value
+          $ctx = New-AzStorageContext -StorageAccountName $StorageAccountName -StorageAccountKey $accountKey
+
+          # Ensure State Container
+          $stateContainer = Get-AzStorageContainer -Context $ctx -Name $StateContainerName -ErrorAction SilentlyContinue
+          if ($null -eq $stateContainer) {
+              Write-Host "Creating State Container: '$StateContainerName'"
+              New-AzStorageContainer -Name $StateContainerName -Context $ctx
+          } else {
+              Write-Host "State Container '$StateContainerName' already exists."
+          }
+          $stateContainerScope = "$($sa.Id)/blobServices/default/containers/$StateContainerName"
+
+          # Ensure Artifact Container
+          $artifactContainer = Get-AzStorageContainer -Context $ctx -Name $ArtifactContainerName -ErrorAction SilentlyContinue
+          if ($null -eq $artifactContainer) {
+              Write-Host "Creating Artifact Container: '$ArtifactContainerName'"
+              New-AzStorageContainer -Name $ArtifactContainerName -Context $ctx
+          } else {
+              Write-Host "Artifact Container '$ArtifactContainerName' already exists."
+          }
+          $artifactContainerScope = "$($sa.Id)/blobServices/default/containers/$ArtifactContainerName"
+
+          # Grant RBAC on Containers to deploying identity
+          Grant-RBACRole -PrincipalId $deployPrincipalId -Scope $stateContainerScope -RoleDefinitionName 'Storage Blob Data Contributor'
+          Grant-RBACRole -PrincipalId $deployPrincipalId -Scope $artifactContainerScope -RoleDefinitionName 'Storage Blob Data Contributor'
+
+          # Grant RBAC on Resource Group if requested
+          if ($GrantRbACOnRG) {
+              Write-Host "Granting RG-level roles as requested..."
+              Grant-RBACRole -PrincipalId $deployPrincipalId -Scope $rgScope -RoleDefinitionName 'Contributor'
+              Grant-RBACRole -PrincipalId $deployPrincipalId -Scope $rgScope -RoleDefinitionName 'Role Based Access Control Administrator'
+          }
+
+          # Disable Shared Key Access now that setup is complete
+          Write-Host "Disabling shared key access on storage account '$StorageAccountName'."
+          Set-AzStorageAccount -ResourceGroupName $ResourceGroupName -Name $StorageAccountName -AllowSharedKeyAccess $false | Out-Null
+
+          Write-Host "Backend resources and RBAC verified successfully."
+        azPSVersion: "latest"
+        errorActionPreference: Stop

@@ -5,7 +5,7 @@ This action is run after a terraform plan and creates the build artifact to be u
 ## Inputs
 
 terraform_root_path
-TF_SUBSCRIPTION_ID
+TF_STATE_SUBSCRIPTION_ID
 TF_STATE_BLOB_ACCOUNT
 ARTIFACT_BLOB_CONTAINER
 
@@ -18,12 +18,13 @@ none
 This action uses pwsh shell inline script.
 
 Marketplace actions:
+
 - azure/login
 - azure/cli
 
 ## repository variable/env variables
 
-TF_SUBSCRIPTION_ID
+TF_STATE_SUBSCRIPTION_ID
 TF_STATE_BLOB_ACCOUNT
 ARTIFACT_BLOB_CONTAINER
 
@@ -38,7 +39,7 @@ In the calling workflow templates in this repository this action runs when there
   uses: <org>/<template repository>/.github/actions/createartifact@main
   with:
     terraform_root_path: ${{ inputs.terraform_root_path }}
-    TF_SUBSCRIPTION_ID: ${{ env.TF_SUBSCRIPTION_ID }}
+    TF_STATE_SUBSCRIPTION_ID: ${{ env.TF_STATE_SUBSCRIPTION_ID }}
     TF_STATE_BLOB_ACCOUNT: ${{ env.TF_STATE_BLOB_ACCOUNT }}
     ARTIFACT_BLOB_CONTAINER: ${{ env.ARTIFACT_BLOB_CONTAINER }}
 ```

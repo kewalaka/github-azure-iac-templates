@@ -44,7 +44,7 @@ jobs:
         ARM_USE_AZUREAD: true
         ARM_USE_OIDC: true
         ## backend vars
-        TF_SUBSCRIPTION_ID: ${{ vars.TF_SUBSCRIPTION_ID != '' && vars.TF_SUBSCRIPTION_ID || ( vars.AZURE_SUBSCRIPTION_ID != '' && vars.AZURE_SUBSCRIPTION_ID || inputs.azure_subscription_id )}}
+        TF_STATE_SUBSCRIPTION_ID: ${{ vars.TF_STATE_SUBSCRIPTION_ID != '' && vars.TF_STATE_SUBSCRIPTION_ID || ( vars.AZURE_SUBSCRIPTION_ID != '' && vars.AZURE_SUBSCRIPTION_ID || inputs.azure_subscription_id )}}
         TF_STATE_RESOURCE_GROUP: ${{ vars.TF_STATE_RESOURCE_GROUP }}
         TF_STATE_BLOB_ACCOUNT: ${{ vars.TF_STATE_BLOB_ACCOUNT }}
         TF_STATE_BLOB_CONTAINER: ${{ vars.TF_STATE_BLOB_CONTAINER || 'tfstate' }}
@@ -59,16 +59,16 @@ jobs:
         uses: kewalaka/github-azure-iac-templates/.github/actions/ipdefault@main
         with:
           OPERATION: "Allow"
-          TF_SUBSCRIPTION_ID: ${{ env.TF_SUBSCRIPTION_ID  }}
+          TF_STATE_SUBSCRIPTION_ID: ${{ env.TF_STATE_SUBSCRIPTION_ID  }}
           TF_STATE_RESOURCE_GROUP: ${{ env.TF_STATE_RESOURCE_GROUP }}
           TF_STATE_BLOB_ACCOUNT: ${{ env.TF_STATE_BLOB_ACCOUNT }}
           EXTRA_FIREWALL_UNLOCKS: "${{ env.EXTRA_FIREWALL_UNLOCKS }}"
 
-      - name: "Download Artifact"
+      - name: Download Artifact
         id: download
         uses: kewalaka/github-azure-iac-templates/.github/actions/downloadartifact@main
         with:
-          TF_SUBSCRIPTION_ID: ${{ env.TF_SUBSCRIPTION_ID }}
+          TF_STATE_SUBSCRIPTION_ID: ${{ env.TF_STATE_SUBSCRIPTION_ID }}
           TF_STATE_BLOB_ACCOUNT: ${{ env.TF_STATE_BLOB_ACCOUNT }}
           ARTIFACT_BLOB_CONTAINER: ${{ env.ARTIFACT_BLOB_CONTAINER }}
 
@@ -90,19 +90,19 @@ jobs:
         with:
           terraform_root_path: ${{ inputs.terraform_root_path }}
 
-      - name: "Terraform Apply${{ inputs.destroyResources && ' Destroy' || '' }}"
+      - name: Terraform Apply${{ inputs.destroyResources && ' Destroy' || '' }}
         id: apply
         uses: kewalaka/github-azure-iac-templates/.github/actions/terraformapply@main
         with:
           terraform_root_path: ${{ inputs.terraform_root_path }}
           destroyResources: ${{ inputs.destroyResources }}
 
-      - name: "Delete Artifact"
+      - name: Delete Artifact
         id: delete
         if: ${{ always() }}
         uses: kewalaka/github-azure-iac-templates/.github/actions/deleteartifact@main
         with:
-          TF_SUBSCRIPTION_ID: ${{ env.TF_SUBSCRIPTION_ID }}
+          TF_STATE_SUBSCRIPTION_ID: ${{ env.TF_STATE_SUBSCRIPTION_ID }}
           TF_STATE_BLOB_ACCOUNT: ${{ env.TF_STATE_BLOB_ACCOUNT }}
           ARTIFACT_BLOB_CONTAINER: ${{ env.ARTIFACT_BLOB_CONTAINER }}
 
@@ -111,7 +111,7 @@ jobs:
         uses: kewalaka/github-azure-iac-templates/.github/actions/ipdefault@main
         with:
           OPERATION: "Deny"
-          TF_SUBSCRIPTION_ID: ${{ env.TF_SUBSCRIPTION_ID  }}
+          TF_STATE_SUBSCRIPTION_ID: ${{ env.TF_STATE_SUBSCRIPTION_ID  }}
           TF_STATE_RESOURCE_GROUP: ${{ env.TF_STATE_RESOURCE_GROUP }}
           TF_STATE_BLOB_ACCOUNT: ${{ env.TF_STATE_BLOB_ACCOUNT }}
           EXTRA_FIREWALL_UNLOCKS: "${{ env.EXTRA_FIREWALL_UNLOCKS }}"

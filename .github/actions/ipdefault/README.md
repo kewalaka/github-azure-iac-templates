@@ -5,7 +5,7 @@ This action is run before and after the terraform init/plan/apply/destroy steps.
 ## Inputs
 
 OPERATION
-TF_SUBSCRIPTION_ID
+TF_STATE_SUBSCRIPTION_ID
 TF_STATE_RESOURCE_GROUP
 TF_STATE_BLOB_ACCOUNT
 EXTRA_FIREWALL_UNLOCKS
@@ -17,12 +17,13 @@ none
 ## Steps and Marketplace Actions
 
 Marketplace actions:
+
 - azure/login
 - azure/powershell
 
 ## repository variable/env variables
 
-TF_SUBSCRIPTION_ID
+TF_STATE_SUBSCRIPTION_ID
 TF_STATE_RESOURCE_GROUP
 TF_STATE_BLOB_ACCOUNT
 EXTRA_FIREWALL_UNLOCKS
@@ -37,7 +38,7 @@ In the calling workflow templates in this repository this action runs at the sta
   uses: <org>/<template repository>/.github/actions/ipdefault@main
   with:
     OPERATION: "Allow"
-    TF_SUBSCRIPTION_ID: ${{ env.TF_SUBSCRIPTION_ID  }}
+    TF_STATE_SUBSCRIPTION_ID: ${{ env.TF_STATE_SUBSCRIPTION_ID  }}
     TF_STATE_RESOURCE_GROUP: ${{ env.TF_STATE_RESOURCE_GROUP }}
     TF_STATE_BLOB_ACCOUNT: ${{ env.TF_STATE_BLOB_ACCOUNT }}
     EXTRA_FIREWALL_UNLOCKS: "${{ env.EXTRA_FIREWALL_UNLOCKS }}"
@@ -47,7 +48,7 @@ In the calling workflow templates in this repository this action runs at the sta
   uses: <org>/<template repository>/.github/actions/ipdefault@main
   with:
     OPERATION: "Deny"
-    TF_SUBSCRIPTION_ID: ${{ env.TF_SUBSCRIPTION_ID  }}
+    TF_STATE_SUBSCRIPTION_ID: ${{ env.TF_STATE_SUBSCRIPTION_ID  }}
     TF_STATE_RESOURCE_GROUP: ${{ env.TF_STATE_RESOURCE_GROUP }}
     TF_STATE_BLOB_ACCOUNT: ${{ env.TF_STATE_BLOB_ACCOUNT }}
     EXTRA_FIREWALL_UNLOCKS: "${{ env.EXTRA_FIREWALL_UNLOCKS }}"

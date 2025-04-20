@@ -2,11 +2,13 @@
 
 This repository is a collection of GitHub Actions useful for deploying Terraform to Azure using OIDC authentication and Azure Blob Storage for state and plan artifacts.
 
+It is designed to be used with 'multi-environment' solutions (i.e. those that need to deploy similar code to dev, test, prod, etc), with support for commonly required checks such as linting and code security static analysis.
+
 ## Quick Start
 
-These templates rely on GitHub Environments to manage secrets and branch protection rules. You need two environments per target (e.g., `dev`, `test`):
+GitHub Environments are used to provide Actions with access to the correct deployment target and identity.
 
-1. **Create Environments:** In your repository settings (`Settings` -> `Environments`), create two environments for each target:
+1. **Create Environments:** Navigate to `Settings` -> `Environments`, create two for each target environment:
     * `<env_name>_plan` (e.g., `dev_plan`)
     * `<env_name>_apply` (e.g., `dev_apply`)
 
@@ -17,7 +19,7 @@ These templates rely on GitHub Environments to manage secrets and branch protect
     * `TF_STATE_RESOURCE_GROUP`: Resource group name containing the Terraform state storage account.
     * `TF_STATE_BLOB_ACCOUNT`: Storage account name for Terraform state.
 
-## Example Usage
+### Example Usage
 
 Create a workflow file (e.g., `.github/workflows/deploy.yml`) in your repository with the following content. This example uses `workflow_dispatch` for manual triggering:
 
@@ -69,7 +71,7 @@ jobs:
 
 ```
 
-## Recommended: Add Protection Rules
+## Recommendation: Add Protection Rules
 
 To prevent accidental deployments, configure protection rules on your `_apply` environments:
 
@@ -84,7 +86,7 @@ You can add these optional **Variables** to your environments (`_plan` and `_app
 
 | Variable Name | Description | Default |
 | :------------ | :---------- | :------ |
-| `TF_SUBSCRIPTION_ID`      | Subscription ID for the Terraform state storage, only required if it is not the same as the deployment subscription account.   | `AZURE_SUBSCRIPTION_ID` |
+| `TF_STATE_SUBSCRIPTION_ID`      | Subscription ID for the Terraform state storage, only required if it is not the same as the deployment subscription account.   | `AZURE_SUBSCRIPTION_ID` |
 | `TF_STATE_BLOB_CONTAINER` | Container name within the state storage account. | `tfstate` |
 | `ARTIFACT_BLOB_CONTAINER` | Container name for storing the Terraform plan artifact. | `tfartifact` |
 | `EXTRA_TF_VARS`           | Comma-separated `key=value` pairs passed as additional `-var` arguments to Terraform (e.g., `containertag=<SHA>,subid=<GUID>`)  This should be used sparingly, only for variables that need to be computed by previous steps. | (none) |

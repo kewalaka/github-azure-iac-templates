@@ -19,7 +19,7 @@ runs:
         echo " "
 
         terraform init \
-        -backend-config="subscription_id=${{ env.TF_SUBSCRIPTION_ID }}" \
+        -backend-config="subscription_id=${{ env.TF_STATE_SUBSCRIPTION_ID }}" \
         -backend-config="resource_group_name=${{ env.TF_STATE_RESOURCE_GROUP }}" \
         -backend-config="storage_account_name=${{ env.TF_STATE_BLOB_ACCOUNT }}" \
         -backend-config="container_name=${{ env.TF_STATE_BLOB_CONTAINER }}" \

@@ -1,4 +1,4 @@
-# Login to AKS for Kubernetes terraform
+# Login to Azure Kubernetes Services (AKS)
 
 This action is used to login to AKS for kubernetes terraform provider or k8s manifest deployment.
 

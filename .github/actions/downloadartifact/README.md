@@ -4,7 +4,7 @@ This action is run before a terraform apply and downloads the build artifact to 
 
 ## Inputs
 
-TF_SUBSCRIPTION_ID
+TF_STATE_SUBSCRIPTION_ID
 TF_STATE_BLOB_ACCOUNT
 ARTIFACT_BLOB_CONTAINER
 
@@ -17,12 +17,13 @@ none
 This action uses pwsh shell inline script.
 
 Marketplace actions:
+
 - azure/login
 - azure/cli
 
 ## repository variable/env variables
 
-TF_SUBSCRIPTION_ID
+TF_STATE_SUBSCRIPTION_ID
 TF_STATE_BLOB_ACCOUNT
 ARTIFACT_BLOB_CONTAINER
 
@@ -31,11 +32,11 @@ ARTIFACT_BLOB_CONTAINER
 In the calling workflow templates in this repository this action runs at the start of an apply/destroy job. The inputs are similar to those used in other terraform calls apart from the ARTIFACT_BLOB_CONTAINER which should be set in the calling repository.
 
 ```yaml
-- name: "Download Artifact"
+- name: Download Artifact
   id: download
   uses: <org>/<template repository>/.github/actions/downloadartifact@main
   with:
-    TF_SUBSCRIPTION_ID: ${{ env.TF_SUBSCRIPTION_ID }}
+    TF_STATE_SUBSCRIPTION_ID: ${{ env.TF_STATE_SUBSCRIPTION_ID }}
     TF_STATE_BLOB_ACCOUNT: ${{ env.TF_STATE_BLOB_ACCOUNT }}
     ARTIFACT_BLOB_CONTAINER: ${{ env.ARTIFACT_BLOB_CONTAINER }}
 ```

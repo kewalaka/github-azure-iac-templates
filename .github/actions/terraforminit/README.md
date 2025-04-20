@@ -16,7 +16,7 @@ This action uses bash shell inline script.
 
 ## repository variable/env variables
 
-TF_SUBSCRIPTION_ID
+TF_STATE_SUBSCRIPTION_ID
 TF_STATE_RESOURCE_GROUP
 TF_STATE_BLOB_ACCOUNT
 TF_STATE_BLOB_CONTAINER
