@@ -1,0 +1,50 @@
+name: Run Terraform Lint
+id: run-tflint
+description: Runs Terrform Linting checks
+
+inputs:
+  terraform_root_path:
+    description: 'Relative path to root of Terraform code (usually ./iac)'
+    required: true
+  tfvars_file:
+    description: 'Comma seperated list of paths to optional tfvars files. Paths are relative to the terraform root path.'
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - name: Install TFLint
+      id: install-tflint-action
+      shell: bash
+      run: |
+        wget https://raw.githubusercontent.com/terraform-linters/tflint/master/install_linux.sh
+        chmod +x install_linux.sh
+        ./install_linux.sh
+
+    - name: Init TFLint
+      id: init-tflint-action
+      shell: bash
+      working-directory: ${{ inputs.terraform_root_path }}
+      run: |
+        if [ ! -f ./.tflint.hcl ]; then
+          echo "TFLINT config file not found. Copying in default config."
+          cp ${{ github.action_path }}/.tflint.hcl .
+          ls -la .tflint.hcl
+        fi
+
+        tflint --init
+        tflint --enable-plugin=azurerm
+        tflint --version
+
+    - name: Run TFLint
+      id: run-tflint-action
+      shell: bash
+      working-directory: ${{ inputs.terraform_root_path }}
+      run: |
+        if [ -n "${{ inputs.tfvars_file }}" ]; then
+          echo "Running tflint with var file: ${{ inputs.tfvars_file }}"
+          tflint --var-file "${{ inputs.tfvars_file }}"
+        else
+          echo "Running tflint"
+          tflint
+        fi

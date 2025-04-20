@@ -1,0 +1,69 @@
+name: Terraform deploy template
+on:
+  workflow_call:
+    inputs:
+      terraform_action:
+        description: 'Run Apply'
+        type: string
+      runner_name:
+        description: 'The name of the runner pool to run on'
+        type: string
+        default: 'ubuntu-latest'
+      plan_target_environment:
+        description: 'The environment to run the plan job against'
+        type: string
+      apply_target_environment:
+        description: 'The environment to run the apply job against'
+        type: string
+      terraform_root_path:
+        description: 'Relative path to root of Terraform code (usually ./iac)'
+        default: './iac'
+        type: string
+      tfvars_file:
+        description: 'Comma seperated list of paths to optional tfvars files. Paths are relative to the terraform root path.'
+        type: string
+      tfstate_file:
+        description: 'Terraform state file name'
+        type: string
+      requireStorageAccountFirewallAction:
+        description: 'Unlock firewall for tf state storage and any extra unlocks'
+        default: false
+        type: boolean
+      destroyResources:
+        type: boolean
+        default: false
+      bypassChecks:
+        type: boolean
+        default: false
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  terraform-plan:
+    name: "Run terraform plan${{ inputs.destroyResources && ' destroy' || '' }} for ${{ inputs.plan_target_environment }}"
+    uses: kewalaka/github-azure-iac-templates/.github/workflows/terraform-plan-template.yml@main
+    with:
+      runner_name: ${{ inputs.runner_name }}
+      target_environment: ${{ inputs.plan_target_environment }}
+      terraform_root_path: ${{ inputs.terraform_root_path }}
+      tfvars_file: ${{ inputs.tfvars_file }}
+      tfstate_file: ${{ inputs.tfstate_file }}
+      requireStorageAccountFirewallAction: ${{ inputs.requireStorageAccountFirewallAction }}
+      destroyResources: ${{ inputs.destroyResources }}
+      bypassChecks: ${{ inputs.bypassChecks }}
+      uploadArtifact: ${{ contains(fromJSON('["destroy", "apply"]'), inputs.terraform_action) }}
+
+  terraform-apply:
+    needs: terraform-plan
+    name: "Run terraform${{ inputs.destroyResources && ' destroy' || ' apply' }} for ${{ inputs.apply_target_environment }}"
+    if: ${{ contains(fromJSON('["destroy", "apply"]'), inputs.terraform_action) }}
+    uses: kewalaka/github-azure-iac-templates/.github/workflows/terraform-apply-template.yml@main
+    with:
+      runner_name: ${{ inputs.runner_name }}
+      target_environment: ${{ inputs.apply_target_environment }}
+      terraform_root_path: ${{ inputs.terraform_root_path }}
+      tfstate_file: ${{ inputs.tfstate_file }}
+      requireStorageAccountFirewallAction: ${{ inputs.requireStorageAccountFirewallAction }}
+      destroyResources: ${{ inputs.destroyResources }}

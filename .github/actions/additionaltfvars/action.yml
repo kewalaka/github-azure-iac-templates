@@ -1,0 +1,44 @@
+name: Set Additional TFVAR Envs
+id: set-tfvar-env
+description: Sets TF_VAR_ Environment Variables
+
+inputs:
+  tfvar-list:
+    description: List of extra variables in the form of "key=value,key=value"
+    required: true
+
+runs:
+  using: composite
+  steps:
+  - name: Set TF_VAR
+    id: set-tf-var
+    shell: pwsh
+    run: |
+      $extraVars=${{ inputs.tfvar-list }}
+
+      if ($extraVars.Length -eq 0)
+      {
+        Write-Host "No additional TFVARs supplied"
+        exit 0
+      }
+
+      $tfvars = $extraVars -split ','
+
+      foreach ($tfvar in $tfvars)
+      {
+        try {
+          if ($tfvar.trim() -ne "")
+          {
+            $tfvarName = "TF_VAR_" + ($tfvar -split '=')[0]
+            $tfvarValue = ($tfvar -split '=')[1]
+            Write-Host "Setting environment variable '$tfvarName' to '$tfvarValue'"
+            echo "$tfvarName=$tfvarValue" >> $env:GITHUB_ENV
+          }
+        }
+        catch {
+          Write-Error $_.Exception.Message
+          Write-Host "`nThe additionalTFVars parameter should be a comma-separated string of key=value pairs, for example: 'myVariable=theValue'"
+          Write-Host "Variable names will be automatically prefixed with TF_VAR_"
+          exit 1
+        }
+      }

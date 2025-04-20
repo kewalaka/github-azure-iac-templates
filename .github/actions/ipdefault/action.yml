@@ -1,0 +1,36 @@
+name: Set Resource Firewall
+description: Changes the firewall default action of Key Vault and Storage Accounts from Github workflow
+
+inputs:
+  OPERATION:
+    description: Specifies the default action and public endpoint. Valid values are Allow,Deny
+    required: true
+  TF_SUBSCRIPTION_ID:
+    description: Specifies the subscription id for the terraform state storage account.
+    required: true
+  TF_STATE_RESOURCE_GROUP:
+    description: Specifies the terraform storage account resource group
+    required: true
+  TF_STATE_BLOB_ACCOUNT:
+    description: Specifies the terraform storage account name
+    required: true
+  EXTRA_FIREWALL_UNLOCKS:
+    description: Specifies a list of resources in json syntax to unlock. Can be in separate subscriptions
+    default: ''
+
+runs:
+  using: composite
+  steps:
+    - name: Azure login
+      uses: azure/login@v2
+      with:
+        client-id: ${{ env.ARM_CLIENT_ID }}
+        tenant-id: ${{ env.ARM_TENANT_ID }}
+        subscription-id: ${{ env.ARM_SUBSCRIPTION_ID }}
+        enable-AzPSSession: true
+
+    - name: Run Azure PowerShell Script File
+      uses: azure/powershell@v2
+      with:
+        inlineScript: ${{ github.action_path }}/Update-IPDefaultAction.ps1 -operation ${{ inputs.OPERATION }} -tfstateSubscriptionID ${{ inputs.TF_SUBSCRIPTION_ID }} -tfstateStorageAccountName ${{ inputs.TF_STATE_BLOB_ACCOUNT }} -tfstateResourceGroupName ${{ inputs.TF_STATE_RESOURCE_GROUP }} -extraFirewallUnlocks '${{ inputs.EXTRA_FIREWALL_UNLOCKS }}'
+        azPSVersion: "latest"

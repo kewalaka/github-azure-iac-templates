@@ -1,0 +1,59 @@
+name: Run Terraform Plan
+id: run-terraform-plan
+description: Runs the Terraform Plan
+
+inputs:
+  terraform_root_path:
+    description: 'Relative path to root of Terraform code (usually ./iac)'
+    required: true
+  tfvars_file:
+    description: 'Comma seperated list of paths to optional tfvars files. Paths are relative to the terraform root path.'
+    required: true
+  destroyResources:
+    required: true
+    default: 'false'
+
+runs:
+  using: composite
+  steps:
+    - name: Terraform Validate
+      id: tf-validate-action
+      shell: bash
+      working-directory: ${{ inputs.terraform_root_path }}
+      run: |
+        terraform validate
+
+    - name: Terraform Format Check
+      id: tf-format-action
+      shell: bash
+      working-directory: ${{ inputs.terraform_root_path }}
+      run: |
+        terraform fmt -recursive -check || { echo $'\nFormatting needs to be fixed! Please run "terraform fmt" over your code for the above files:\nhttps://www.terraform.io/docs/commands/fmt.html' ; exit 1; }
+
+    - name: Terraform Plan
+      id: tf-plan-action
+      shell: bash
+      working-directory: ${{ inputs.terraform_root_path }}
+      run: |
+        echo "Current working directory: $(pwd)"
+
+        echo "Destroy flag set: ${{ inputs.destroyResources }}"
+        echo " "
+        echo "Running terraform plan${{ inputs.destroyResources == 'true' && ' -destroy' || '' }}"
+        echo " "
+
+        terraform plan \
+        $([ -n "${{ inputs.tfvars_file }}" ] && echo "-var-file ${{ inputs.tfvars_file }}" | sed 's/,/ -var-file /') \
+        -out=tfplan -input=false \
+        ${{ inputs.destroyResources == 'true' && '-destroy' || '' }}
+
+    - name: Show the Plan for Review
+      id: tf-plan-show-action
+      shell: bash
+      working-directory: ${{ inputs.terraform_root_path }}
+      run: |
+        curl -L "$(curl -s https://api.github.com/repos/Azure/tfplandoc/releases/latest | grep -o -E "https://.+?_linux_amd64.zip")" > tfplandoc.zip
+        unzip tfplandoc.zip
+        mv tfplandoc_v* tfplandoc
+        sudo install tfplandoc /usr/local/bin
+        terraform show -json tfplan | tfplandoc generate -

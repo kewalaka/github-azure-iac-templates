@@ -1,0 +1,55 @@
+name: Create Terraform Plan Artifact
+id: create-terraform-artifact
+description: Creates the terraform plan artifact
+
+inputs:
+  terraform_root_path:
+    description: 'Relative path to root of Terraform code (usually ./iac)'
+    required: true
+  TF_SUBSCRIPTION_ID:
+    description: Specifies the subscription id for the terraform state storage account.
+    required: true
+  TF_STATE_BLOB_ACCOUNT:
+    description: Specifies the terraform storage account name
+    required: true
+  ARTIFACT_BLOB_CONTAINER:
+    description: Specifies a container to upload the created artifact to
+    default: 'tfartifact'
+
+runs:
+  using: composite
+  steps:
+    - name: Create Terraform Artifact
+      id: create-artifact-action
+      shell: pwsh
+      run: |
+        $stagingDirectory = "staging"
+        $rootModuleFolder = "${{ inputs.terraform_root_path }}"
+        New-Item -Path . -Name $stagingDirectory -ItemType "directory"
+        Copy-Item -Path "./*" -Exclude @(".git", ".terraform", ".github",  $stagingDirectory) -Recurse -Destination "./$stagingDirectory"
+
+        $rootModuleFolderTerraformFolder = Join-Path -Path "./$stagingDirectory" -ChildPath $rootModuleFolder -AdditionalChildPath ".terraform"
+        if(Test-Path -Path $rootModuleFolderTerraformFolder) {
+          Remove-Item -Path $rootModuleFolderTerraformFolder -Recurse -Force
+        }
+
+        Compress-Archive -Path "./$stagingDirectory/*" -DestinationPath "./${{ github.run_id }}.zip"
+
+    - name: Azure login
+      uses: azure/login@v2
+      with:
+        client-id: ${{ env.ARM_CLIENT_ID }}
+        tenant-id: ${{ env.ARM_TENANT_ID }}
+        subscription-id: ${{ inputs.TF_SUBSCRIPTION_ID }}
+
+    - name: Publish Terraform Artifact
+      id: upload-artifact-action
+      uses: azure/cli@v2
+      with:
+        inlineScript: |
+          az storage blob upload \
+            --auth-mode login \
+            --account-name ${{ inputs.TF_STATE_BLOB_ACCOUNT }} \
+            --container-name "${{ inputs.ARTIFACT_BLOB_CONTAINER }}" \
+            --file "./${{ github.run_id }}.zip" \
+            --name "${{ github.run_id }}.zip"

@@ -1,0 +1,26 @@
+name: Run Terraform Init
+id: run-terraform-init
+description: Runs Terraform Init
+
+inputs:
+  terraform_root_path:
+    description: 'Relative path to root of Terraform code (usually ./iac)'
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - name: Terraform Init
+      id: tf-init-action
+      shell: bash
+      working-directory: ${{ inputs.terraform_root_path }}
+      run: |
+        echo "Current working directory: $(pwd)"
+        echo " "
+
+        terraform init \
+        -backend-config="subscription_id=${{ env.TF_SUBSCRIPTION_ID }}" \
+        -backend-config="resource_group_name=${{ env.TF_STATE_RESOURCE_GROUP }}" \
+        -backend-config="storage_account_name=${{ env.TF_STATE_BLOB_ACCOUNT }}" \
+        -backend-config="container_name=${{ env.TF_STATE_BLOB_CONTAINER }}" \
+        -backend-config="key=${{ env.TF_BLOB_FILE }}"
