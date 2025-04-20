@@ -1,39 +1,25 @@
 # Github Terraform CI/CD templates
 
-This repository is a collection of GitHub Actions useful for deploying Terraform.
+This repository is a collection of GitHub Actions useful for deploying Terraform to Azure using OIDC authentication and Azure Blob Storage for state and plan artifacts.
 
-## Getting started
+## Quick Start
 
-Set up required variables in the calling repository.
+These templates rely on GitHub Environments to manage secrets and branch protection rules. You need two environments per target (e.g., `dev`, `test`):
 
-- Repository settings -> Environments - New environment:
-  - Plan : `<env name>_plan`
-  - Apply : `<env name>_apply`
+1. **Create Environments:** In your repository settings (`Settings` -> `Environments`), create two environments for each target:
+    * `<env_name>_plan` (e.g., `dev_plan`)
+    * `<env_name>_apply` (e.g., `dev_apply`)
 
-Set Protection rule on the Apply environment in the calling repository.
+1. **Add Required Variables:** Add the following **Variables** to **both** the `_plan` and `_apply` environments you just created:
+    * `AZURE_CLIENT_ID`: Client ID for the User Assigned Managed Identity used for deployment.
+    * `AZURE_SUBSCRIPTION_ID`: Target Azure Subscription ID for resource deployment.
+    * `AZURE_TENANT_ID`: Azure Tenant ID.
+    * `TF_STATE_RESOURCE_GROUP`: Resource group name containing the Terraform state storage account.
+    * `TF_STATE_BLOB_ACCOUNT`: Storage account name for Terraform state.
 
-- Repository settings -> Environments -> `<env name>_apply` -> Deployment protection rules
-  - turn on required reviewers and configure reviewers and self-reviewer restriction
-  - select save protection rules
+## Example Usage
 
-Add the following environment variables to both plan and apply environments:
-
-- Repository settings -> Environments
-  - select environment and scroll down to variables
-    - AZURE_CLIENT_ID - Client ID for the User Assigned Managed Identity
-    - AZURE_SUBSCRIPTION_ID - Subscription ID for the deployment
-    - AZURE_TENANT_ID - Tenant id for the deployment
-    - TF_STATE_RESOURCE_GROUP - Resource group for the terraform state storage account
-    - TF_STATE_BLOB_ACCOUNT - Terraform state storage account name
-
-    - TF_SUBSCRIPTION_ID - (optional) Subscription ID for the terraform state storage account. If empty will default to AZURE_SUBSCRIPTION_ID
-
-    - TF_STATE_BLOB_CONTAINER- (optional) Terraform state storage container name. Will default to tfstate.
-    - EXTRA_FIREWALL_UNLOCKS - (optional) Specifies extra key vaults and storage accounts to unlock
-    - EXTRA_TF_VARS - (optional) Specifies extra variables for the terraform deployment. Comma separated key=value pairs.
-    - ARTIFACT_BLOB_CONTAINER - (optional) Specifies the container in the Terraform state storage account to store the build artifact. Defaults to tfartifact
-
-The example below can be used from the calling repository
+Create a workflow file (e.g., `.github/workflows/deploy.yml`) in your repository with the following content. This example uses `workflow_dispatch` for manual triggering:
 
 ```yaml
 name: Terraform Deployment
@@ -54,7 +40,7 @@ on:
         required: true
         type: choice
         default: dev
-        options:  ## options should match required environments
+        options:  # options should match your configured environments (e.g., dev, test, prod)
           - dev
           - test
           - prod
@@ -62,16 +48,16 @@ on:
         type: boolean
         default: false
 
-run-name: Terraform ${{ inputs.terraform_action }} ( ${{ inputs.target_environment }}) by @${{ github.actor }} for ${{ github.workflow }}
+run-name: Terraform ${{ inputs.terraform_action }} (${{ inputs.target_environment }}) by @${{ github.actor }}
 
 permissions:
-  id-token: write
-  contents: read
+  id-token: write # Required for OIDC authentication
+  contents: read  # Required to checkout code
 
 jobs:
   call-terraform-deploy:
     name: "Run terraform ${{ inputs.terraform_action }} for ${{ inputs.target_environment }}"
-    uses: kewalaka/github-azure-iac-templates/.github/workflows/terraform-deploy-template.yml@main
+    uses: kewalaka/github-azure-iac-templates/.github/workflows/terraform-deploy-template.yml@v1.0
     with:
       terraform_action: ${{ inputs.terraform_action }}
       plan_target_environment: "${{ inputs.target_environment }}_plan"
@@ -79,14 +65,46 @@ jobs:
       tfvars_file: "./environments/${{ inputs.target_environment }}.terraform.tfvars"
       tfstate_file: "${{ inputs.target_environment }}.tfstate"
       destroyResources: ${{ inputs.destroyResources == true || inputs.terraform_action == 'destroy' }}
+    secrets: inherit
+
 ```
 
-## Share these templates with other repos
+## Recommended: Add Protection Rules
 
-To allow other private repositories in the org to use these templates:
+To prevent accidental deployments, configure protection rules on your `_apply` environments:
 
-- Under the repository, click Settings.
-- In the left sidebar, click Actions, then click General.
-- Under Access, "Accessible from repositories in the __ organization"
+1. Go to Repository `Settings` -> `Environments` -> `<env_name>_apply`.
+1. Under **Deployment protection rules**, enable **Required reviewers**.
+1. Configure reviewers (users or teams) who must approve deployments to this environment.
+1. Save the protection rules.
 
-ref: <https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/enabling-features-for-your-repository/managing-github-actions-settings-for-a-repository#managing-access-for-a-private-repository-in-an-organization>
+## Optional Variables
+
+You can add these optional **Variables** to your environments (`_plan` and `_apply`) to customize behavior:
+
+| Variable Name | Description | Default |
+| :------------ | :---------- | :------ |
+| `TF_SUBSCRIPTION_ID`      | Subscription ID for the Terraform state storage, only required if it is not the same as the deployment subscription account.   | `AZURE_SUBSCRIPTION_ID` |
+| `TF_STATE_BLOB_CONTAINER` | Container name within the state storage account. | `tfstate` |
+| `ARTIFACT_BLOB_CONTAINER` | Container name for storing the Terraform plan artifact. | `tfartifact` |
+| `EXTRA_TF_VARS`           | Comma-separated `key=value` pairs passed as additional `-var` arguments to Terraform (e.g., `containertag=<SHA>,subid=<GUID>`)  This should be used sparingly, only for variables that need to be computed by previous steps. | (none) |
+
+It is possible to specify a list of resource firewalls to unlock during the pipeline run, however we recommend using self-hosted or managed runners instead of this feature:
+
+| Variable Name | Description | Default |
+| :------------ | :---------- | :------ |
+| `EXTRA_FIREWALL_UNLOCKS`  | Comma-separated list of additional `storageaccountname` or `keyvaultname` resources whose firewalls should be temporarily opened. | (none) |
+
+## Using Templates Across Repositories
+
+To use these templates from another **private** repository within the same organization:
+
+1. **Enable Access:** In *this* template repository (`github-azure-iac-templates`), go to `Settings` -> `Actions` -> `General`. Under **Access**, ensure "Accessible from repositories in the `<your_org_name>` organization" is selected.
+1. **Update `uses` Path:** In the calling workflow of the *other* repository, update the `uses:` path to the full path of this template repository, **pinning to a specific version tag (recommended)**:
+
+```yaml
+  # Replace 'your-org-name' and use a real tag
+  uses: your-org-name/github-azure-iac-templates/.github/workflows/terraform-deploy-template.yml@v1.0
+```
+
+*(Reference: [Managing access for Actions in an organization](https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/enabling-features-for-your-repository/managing-github-actions-settings-for-a-repository#managing-access-for-a-private-repository-in-an-organization))*
