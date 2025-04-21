@@ -35,6 +35,11 @@ on:
       bypassChecks:
         type: boolean
         default: false
+      azure_subscription_id:
+        description: 'Azure Subscription ID for this run (overrides env.ARM_SUBSCRIPTION_ID)'
+        required: false
+        type: string
+        default: ''
 
 permissions:
   id-token: write
@@ -54,6 +59,8 @@ jobs:
       destroyResources: ${{ inputs.destroyResources }}
       bypassChecks: ${{ inputs.bypassChecks }}
       uploadArtifact: ${{ contains(fromJSON('["destroy", "apply"]'), inputs.terraform_action) }}
+      azure_subscription_id: ${{ inputs.azure_subscription_id }}
+      secrets: inherit
 
   terraform-apply:
     needs: terraform-plan
@@ -67,3 +74,4 @@ jobs:
       tfstate_file: ${{ inputs.tfstate_file }}
       requireStorageAccountFirewallAction: ${{ inputs.requireStorageAccountFirewallAction }}
       destroyResources: ${{ inputs.destroyResources }}
+      azure_subscription_id: ${{ inputs.azure_subscription_id }}

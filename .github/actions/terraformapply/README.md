@@ -28,7 +28,7 @@ In the calling workflow templates in this repository this action runs at the jus
 ```yaml
 - name: "Terraform Apply${{ inputs.destroyResources && ' Destroy' || '' }}"
   id: apply
-  uses: <org>/<template repository>/.github/actions/terraformapply@main
+  uses: <org>/<template repository>/.github/actions/terraformapply
   with:
     terraform_root_path: ${{ inputs.terraform_root_path }}
     destroyResources: ${{ inputs.destroyResources }}

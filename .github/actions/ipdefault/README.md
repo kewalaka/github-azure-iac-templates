@@ -45,7 +45,7 @@ In the calling workflow templates in this repository this action runs at the sta
 ```yaml
 - name: Unlock Resource Firewalls
   if: ${{ inputs.requireStorageAccountFirewallAction }}
-  uses: <org>/<template repository>/.github/actions/ipdefault@main
+  uses: <org>/<template repository>/.github/actions/ipdefault
   with:
     OPERATION: "Allow"
     TF_STATE_SUBSCRIPTION_ID: ${{ env.TF_STATE_SUBSCRIPTION_ID  }}
@@ -55,7 +55,7 @@ In the calling workflow templates in this repository this action runs at the sta
 
 - name: Lock Resource Firewalls
   if: ${{ always() && inputs.requireStorageAccountFirewallAction }}
-  uses: <org>/<template repository>/.github/actions/ipdefault@main
+  uses: <org>/<template repository>/.github/actions/ipdefault
   with:
     OPERATION: "Deny"
     TF_STATE_SUBSCRIPTION_ID: ${{ env.TF_STATE_SUBSCRIPTION_ID  }}

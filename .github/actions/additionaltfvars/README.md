@@ -38,7 +38,7 @@ In the calling workflow templates in this repository it is expected a variable w
 - name: Set Extra TF_VARS
   id: set-tf-vars
   if: ${{ env.EXTRA_TF_VARS != '' }}
-  uses: <org>/<template repository>/.github/actions/additionaltfvars@main
+  uses: <org>/<template repository>/.github/actions/additionaltfvars
   with:
     tfvar-list: ${{ env.EXTRA_TF_VARS }}
 ```

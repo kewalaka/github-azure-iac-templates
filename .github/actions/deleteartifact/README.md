@@ -48,7 +48,7 @@ In the calling workflow templates in this repository this action runs when an ap
 - name: Delete Artifact
   id: delete
   if: ${{ always() }}
-  uses: <org>/<template repository>/.github/actions/deleteartifact@main
+  uses: <org>/<template repository>/.github/actions/deleteartifact
   with:
     TF_STATE_SUBSCRIPTION_ID: ${{ env.TF_STATE_SUBSCRIPTION_ID }}
     TF_STATE_BLOB_ACCOUNT: ${{ env.TF_STATE_BLOB_ACCOUNT }}

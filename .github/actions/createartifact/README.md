@@ -49,7 +49,7 @@ In the calling workflow templates in this repository this action runs when there
 - name: "Upload Artifact"
   id: upload
   if: ${{ inputs.uploadArtifact }}
-  uses: <org>/<template repository>/.github/actions/createartifact@main
+  uses: <org>/<template repository>/.github/actions/createartifact
   with:
     terraform_root_path: ${{ inputs.terraform_root_path }}
     TF_STATE_SUBSCRIPTION_ID: ${{ env.TF_STATE_SUBSCRIPTION_ID }}

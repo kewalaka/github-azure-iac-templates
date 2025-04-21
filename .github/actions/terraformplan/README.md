@@ -46,7 +46,7 @@ In the calling workflow templates in this repository, this action runs the `terr
 
 - name: "Terraform Plan${{ inputs.destroyResources && ' Destroy' || '' }}"
   id: plan
-  uses: <org>/<template repository>/.github/actions/terraformplan@main # Adjust path/version
+  uses: <org>/<template repository>/.github/actions/terraformplan # Adjust path/version
   with:
     terraform_root_path: ${{ inputs.terraform_root_path }}
     destroyResources: ${{ inputs.destroyResources }}

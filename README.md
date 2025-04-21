@@ -1,6 +1,8 @@
-# Github Terraform CI/CD templates
+# Github Infrastructure as Code CI/CD templates
 
-This repository is a collection of GitHub Actions useful for deploying Terraform to Azure using OIDC authentication and Azure Blob Storage for state and plan artifacts.
+This repository is a collection of GitHub Actions useful for deploying Terraform or Bicep to Azure using OIDC authentication.
+
+For Terraform, Azure Blob Storage is used for state and plan artifacts.
 
 It is designed to be used with 'multi-environment' solutions (i.e. those that need to deploy similar code to dev, test, prod, etc), with support for commonly required checks such as linting and code security static analysis.
 
@@ -16,10 +18,12 @@ GitHub Environments are used to provide Actions with access to the correct deplo
     * `AZURE_CLIENT_ID`: Client ID for the User Assigned Managed Identity used for deployment.
     * `AZURE_SUBSCRIPTION_ID`: Target Azure Subscription ID for resource deployment.
     * `AZURE_TENANT_ID`: Azure Tenant ID.
+
+1. For Terraform only, create:
     * `TF_STATE_RESOURCE_GROUP`: Resource group name containing the Terraform state storage account.
     * `TF_STATE_BLOB_ACCOUNT`: Storage account name for Terraform state.
 
-### Example Usage
+### Example Usage - Terraform
 
 Create a workflow file (e.g., `.github/workflows/deploy.yml`) in your repository with the following content. This example uses `workflow_dispatch` for manual triggering:
 

@@ -1,4 +1,4 @@
-# Ensure Terraform Backend Action
+# Deploy Terraform Backend Action
 
 This composite action checks for the existence of the required Azure Storage Account and containers for Terraform state and plan artifacts within a pre-existing Resource Group. If they don't exist, it creates them with secure defaults and grants the necessary RBAC permissions (`Storage Blob Data Contributor`) on the containers to the identity running the workflow.
 
@@ -50,11 +50,11 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v4
 
-      - name: Ensure Terraform Backend Storage and RBAC
+      - name: Check for Terraform Backend Storage and RBAC
         # Use relative path if in the same repo
-        uses: ./.github/actions/ensure-backend
+        uses: ./.github/actions/terraform-backend
         # Or full path if calling from another repo
-        # uses: your-org/your-repo/.github/actions/ensure-backend@v1.0
+        # uses: your-org/your-repo/.github/actions/terraform-backend@v1.0
         with:
           resource_group_name: ${{ env.TF_STATE_RESOURCE_GROUP }}
           storage_account_name: ${{ env.TF_STATE_BLOB_ACCOUNT }}

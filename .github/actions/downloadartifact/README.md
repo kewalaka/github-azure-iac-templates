@@ -47,7 +47,7 @@ In the calling workflow templates in this repository this action runs at the sta
 ```yaml
 - name: Download Artifact
   id: download
-  uses: <org>/<template repository>/.github/actions/downloadartifact@main
+  uses: <org>/<template repository>/.github/actions/downloadartifact
   with:
     TF_STATE_SUBSCRIPTION_ID: ${{ env.TF_STATE_SUBSCRIPTION_ID }}
     TF_STATE_BLOB_ACCOUNT: ${{ env.TF_STATE_BLOB_ACCOUNT }}

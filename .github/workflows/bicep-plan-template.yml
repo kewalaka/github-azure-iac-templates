@@ -103,7 +103,7 @@ jobs:
 
       - name: Bicep Scan (Checkov)
         if: ${{ !inputs.bypass_checks }}
-        uses: ./.github/actions/bicep-scan
+        uses: ./.github/actions/checkov-bicep
         with:
           bicep_file_path: ${{ inputs.bicep_file_path }}
           bicep_root_path: ${{ env.BICEP_ROOT_PATH }}

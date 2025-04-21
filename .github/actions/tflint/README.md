@@ -33,7 +33,7 @@ In the calling workflow templates in this repository this action runs the tflint
 - name: Terraform Lint
   id: tflint
   if: ${{ !inputs.bypassChecks }}
-  uses: <org>/<template repository>/.github/actions/tflint@main
+  uses: <org>/<template repository>/.github/actions/tflint
   with:
     terraform_root_path: ${{ inputs.terraform_root_path }}
     tfvars_file: ${{ env.TF_VAR_FILE }}

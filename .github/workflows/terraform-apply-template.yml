@@ -32,7 +32,8 @@ jobs:
     name: "Terraform Apply${{ inputs.destroyResources && ' Destroy' || '' }}"
     runs-on: ${{ inputs.runner_name }}
     environment: ${{ inputs.target_environment }}
-    concurrency: tfstate
+    concurrency:
+        group: tfstate-${{ inputs.target_environment }}
     permissions:
         id-token: write
         contents: read
@@ -56,7 +57,7 @@ jobs:
     steps:
       - name: Unlock Resource Firewalls
         if: ${{ inputs.requireStorageAccountFirewallAction }}
-        uses: kewalaka/github-azure-iac-templates/.github/actions/ipdefault@main
+        uses: ./.github/actions/ipdefault
         with:
           OPERATION: "Allow"
           TF_STATE_SUBSCRIPTION_ID: ${{ env.TF_STATE_SUBSCRIPTION_ID  }}
@@ -66,7 +67,7 @@ jobs:
 
       - name: Download Artifact
         id: download
-        uses: kewalaka/github-azure-iac-templates/.github/actions/downloadartifact@main
+        uses: ./.github/actions/downloadartifact
         with:
           TF_STATE_SUBSCRIPTION_ID: ${{ env.TF_STATE_SUBSCRIPTION_ID }}
           TF_STATE_BLOB_ACCOUNT: ${{ env.TF_STATE_BLOB_ACCOUNT }}
@@ -80,19 +81,19 @@ jobs:
       - name: Set Extra TF_VARS
         id: set-tf-vars
         if: ${{ env.EXTRA_TF_VARS != '' }}
-        uses: kewalaka/github-azure-iac-templates/.github/actions/additionaltfvars@main
+        uses: ./.github/actions/additionaltfvars
         with:
           tfvar-list: ${{ env.EXTRA_TF_VARS }}
 
       - name: Terraform Init
         id: init
-        uses: kewalaka/github-azure-iac-templates/.github/actions/terraforminit@main
+        uses: ./.github/actions/terraforminit
         with:
           terraform_root_path: ${{ inputs.terraform_root_path }}
 
       - name: Terraform Apply${{ inputs.destroyResources && ' Destroy' || '' }}
         id: apply
-        uses: kewalaka/github-azure-iac-templates/.github/actions/terraformapply@main
+        uses: ./.github/actions/terraformapply
         with:
           terraform_root_path: ${{ inputs.terraform_root_path }}
           destroyResources: ${{ inputs.destroyResources }}
@@ -100,7 +101,7 @@ jobs:
       - name: Delete Artifact
         id: delete
         if: ${{ always() }}
-        uses: kewalaka/github-azure-iac-templates/.github/actions/deleteartifact@main
+        uses: ./.github/actions/deleteartifact
         with:
           TF_STATE_SUBSCRIPTION_ID: ${{ env.TF_STATE_SUBSCRIPTION_ID }}
           TF_STATE_BLOB_ACCOUNT: ${{ env.TF_STATE_BLOB_ACCOUNT }}
@@ -108,7 +109,7 @@ jobs:
 
       - name: Lock Resource Firewalls
         if: ${{ always() && inputs.requireStorageAccountFirewallAction }}
-        uses: kewalaka/github-azure-iac-templates/.github/actions/ipdefault@main
+        uses: ./.github/actions/ipdefault
         with:
           OPERATION: "Deny"
           TF_STATE_SUBSCRIPTION_ID: ${{ env.TF_STATE_SUBSCRIPTION_ID  }}

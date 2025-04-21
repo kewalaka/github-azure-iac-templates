@@ -41,7 +41,8 @@ jobs:
     name: "Terraform Plan${{ inputs.destroyResources && ' Destroy' || '' }}"
     runs-on: ${{ inputs.runner_name }}
     environment: ${{ inputs.target_environment }}
-    concurrency: tfstate
+    concurrency:
+        group: tfstate-${{ inputs.target_environment }}
     permissions:
         id-token: write
         contents: read
@@ -69,7 +70,7 @@ jobs:
 
       - name: Unlock Resource Firewalls
         if: ${{ inputs.requireStorageAccountFirewallAction }}
-        uses: kewalaka/github-azure-iac-templates/.github/actions/ipdefault@main
+        uses: ./.github/actions/ipdefault
         with:
           OPERATION: "Allow"
           TF_STATE_SUBSCRIPTION_ID: ${{ env.TF_STATE_SUBSCRIPTION_ID  }}
@@ -82,30 +83,38 @@ jobs:
         with:
             terraform_wrapper: false
 
+      - name: Check for Terraform Backend Storage and RBAC
+        uses: ./.github/actions/terraform-backend
+        with:
+          resource_group_name: ${{ env.TF_STATE_RESOURCE_GROUP }}
+          storage_account_name: ${{ env.TF_STATE_BLOB_ACCOUNT }}
+          state_container_name: ${{ env.TF_STATE_BLOB_CONTAINER }}
+          artifact_container_name: ${{ env.ARTIFACT_BLOB_CONTAINER }}
+    
       - name: Set Extra TF_VARS
         id: set-tf-vars
         if: ${{ env.EXTRA_TF_VARS != '' }}
-        uses: kewalaka/github-azure-iac-templates/.github/actions/additionaltfvars@main
+        uses: ./.github/actions/additionaltfvars
         with:
           tfvar-list: ${{ env.EXTRA_TF_VARS }}
 
       - name: Terraform Init
         id: init
-        uses: kewalaka/github-azure-iac-templates/.github/actions/terraforminit@main
+        uses: ./.github/actions/terraforminit
         with:
           terraform_root_path: ${{ inputs.terraform_root_path }}
 
       - name: Terraform Lint
         id: tflint
         if: ${{ !inputs.bypassChecks }}
-        uses: kewalaka/github-azure-iac-templates/.github/actions/tflint@main
+        uses: ./.github/actions/tflint
         with:
           terraform_root_path: ${{ inputs.terraform_root_path }}
           tfvars_file: ${{ env.TF_VAR_FILE }}
 
       - name: "Terraform Plan${{ inputs.destroyResources && ' Destroy' || '' }}"
         id: plan
-        uses: kewalaka/github-azure-iac-templates/.github/actions/terraformplan@main
+        uses: ./.github/actions/terraformplan
         with:
           terraform_root_path: ${{ inputs.terraform_root_path }}
           destroyResources: ${{ inputs.destroyResources }}
@@ -115,7 +124,7 @@ jobs:
       - name: "Upload Artifact"
         id: upload
         if: ${{ inputs.uploadArtifact }}
-        uses: kewalaka/github-azure-iac-templates/.github/actions/createartifact@main
+        uses: ./.github/actions/createartifact
         with:
           terraform_root_path: ${{ inputs.terraform_root_path }}
           TF_STATE_SUBSCRIPTION_ID: ${{ env.TF_STATE_SUBSCRIPTION_ID }}
@@ -125,13 +134,13 @@ jobs:
       - name: Terraform Scan
         id: tfcheckov
         if: ${{ !inputs.bypassChecks }}
-        uses: kewalaka/github-azure-iac-templates/.github/actions/runcheckov@main
+        uses: ./.github/actions/checkov-terraform
         with:
           terraform_root_path: ${{ inputs.terraform_root_path }}
 
       - name: Lock Resource Firewalls
         if: ${{ always() && inputs.requireStorageAccountFirewallAction }}
-        uses: kewalaka/github-azure-iac-templates/.github/actions/ipdefault@main
+        uses: ./.github/actions/ipdefault
         with:
           OPERATION: "Deny"
           TF_STATE_SUBSCRIPTION_ID: ${{ env.TF_STATE_SUBSCRIPTION_ID  }}

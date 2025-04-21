@@ -40,7 +40,7 @@ In the calling workflow templates in this repository this action must run before
 ```yaml
 - name: "Login to AKS"
   id: login-aks
-  uses: <org>/<template repository>/.github/actions/loginaks@main
+  uses: <org>/<template repository>/.github/actions/loginaks
   with:
     subscription_id: ${{ env.AKS_SUBSCRIPTION_ID }}
     resource_group: ${{ env.AKS_RESOURCE_GROUP }}

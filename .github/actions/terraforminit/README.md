@@ -35,7 +35,7 @@ In the calling workflow templates in this repository this action runs at the jus
 ```yaml
 - name: Terraform Init
   id: init
-  uses: <org>/<template repository>/.github/actions/terraforminit@main
+  uses: <org>/<template repository>/.github/actions/terraforminit
   with:
     terraform_root_path: ${{ inputs.terraform_root_path }}
 ```

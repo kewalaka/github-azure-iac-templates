@@ -32,7 +32,7 @@ In the calling workflow templates in this repository this action runs at the jus
 - name: Terraform Scan
   id: tfcheckov
   if: ${{ !inputs.bypassChecks }}
-  uses: <org>/<template repository>/.github/actions/runcheckov@main
+  uses: <org>/<template repository>/.github/actions/checkov-terraform
   with:
     terraform_root_path: ${{ inputs.terraform_root_path }}
 ```
