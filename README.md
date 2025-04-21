@@ -14,10 +14,10 @@ GitHub Environments are used to provide Actions with access to the correct deplo
     * `<env_name>_plan` (e.g., `dev_plan`)
     * `<env_name>_apply` (e.g., `dev_apply`)
 
-1. **Add Required Variables:** Add the following **Variables** to **both** the `_plan` and `_apply` environments you just created:
-    * `AZURE_CLIENT_ID`: Client ID for the User Assigned Managed Identity used for deployment.
-    * `AZURE_SUBSCRIPTION_ID`: Target Azure Subscription ID for resource deployment.
-    * `AZURE_TENANT_ID`: Azure Tenant ID.
+1. **Add Required Variables:** Add the following **Secrets** to **both** the `_plan` and `_apply` environments you just created:
+    * `ARM_CLIENT_ID`: Client ID for the User Assigned Managed Identity used for deployment.
+    * `ARM_SUBSCRIPTION_ID`: Target Azure Subscription ID for resource deployment.
+    * `ARM_TENANT_ID`: Azure Tenant ID.
 
 1. For Terraform only, create:
     * `TF_STATE_RESOURCE_GROUP`: Resource group name containing the Terraform state storage account.
@@ -90,7 +90,7 @@ You can add these optional **Variables** to your environments (`_plan` and `_app
 
 | Variable Name | Description | Default |
 | :------------ | :---------- | :------ |
-| `TF_STATE_SUBSCRIPTION_ID`      | Subscription ID for the Terraform state storage, only required if it is not the same as the deployment subscription account.   | `AZURE_SUBSCRIPTION_ID` |
+| `TF_STATE_SUBSCRIPTION_ID`      | Subscription ID for the Terraform state storage, only required if it is not the same as the deployment subscription account.   | `secrets.ARM_SUBSCRIPTION_ID` |
 | `TF_STATE_BLOB_CONTAINER` | Container name within the state storage account. | `tfstate` |
 | `ARTIFACT_BLOB_CONTAINER` | Container name for storing the Terraform plan artifact. | `tfartifact` |
 | `EXTRA_TF_VARS`           | Comma-separated `key=value` pairs passed as additional `-var` arguments to Terraform (e.g., `containertag=<SHA>,subid=<GUID>`)  This should be used sparingly, only for variables that need to be computed by previous steps. | (none) |
