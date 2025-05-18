@@ -64,6 +64,14 @@ jobs:
         ARM_TENANT_ID: "${{ secrets.ARM_TENANT_ID }}"
         ARM_USE_AZUREAD: true
         ARM_USE_OIDC: true
+        ## backend vars
+        TF_STATE_SUBSCRIPTION_ID: ${{ secrets.TF_STATE_SUBSCRIPTION_ID != '' && secrets.TF_STATE_SUBSCRIPTION_ID || ( secrets.ARM_SUBSCRIPTION_ID != '' && secrets.ARM_SUBSCRIPTION_ID || inputs.azure_subscription_id )}}
+        TF_STATE_RESOURCE_GROUP_NAME: ${{ secrets.TF_STATE_RESOURCE_GROUP_NAME }}
+        TF_STATE_STORAGE_ACCOUNT_NAME: ${{ secrets.TF_STATE_STORAGE_ACCOUNT_NAME }}
+        TF_STATE_STORAGE_CONTAINER_NAME: ${{ secrets.TF_STATE_STORAGE_CONTAINER_NAME || 'tfstate' }}
+        TF_STATE_STORAGE_FILE: ${{ inputs.tfstate_file || 'terraform.tfstate' }}
+        # the artifact storage account is used as a more secure way to store the terraform plan artifact
+        ARTIFACT_STORAGE_CONTAINER_NAME:  ${{ secrets.ARTIFACT_STORAGE_CONTAINER_NAME || 'tfartifact' }}
 
         ## environment differences
         TF_VAR_FILE: ${{ inputs.tfvars_file }}
@@ -77,33 +85,23 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v4
 
-      - name: Populate backend variables
-        id: backend-vars
+      - name: Expose backend vars as shell environment variables
         run: |
-          echo "TF_STATE_SUBSCRIPTION_ID=${{ secrets.TF_STATE_SUBSCRIPTION_ID != '' && secrets.TF_STATE_SUBSCRIPTION_ID || ( secrets.ARM_SUBSCRIPTION_ID != '' && secrets.ARM_SUBSCRIPTION_ID || inputs.azure_subscription_id )}}" >> $GITHUB_OUTPUT
-          echo "TF_STATE_RESOURCE_GROUP_NAME=${{ secrets.TF_STATE_RESOURCE_GROUP_NAME }}" >> $GITHUB_OUTPUT
-          echo "TF_STATE_STORAGE_ACCOUNT_NAME=${{ secrets.TF_STATE_STORAGE_ACCOUNT_NAME }}" >> $GITHUB_OUTPUT
-          echo "TF_STATE_STORAGE_CONTAINER_NAME=${{ secrets.TF_STATE_STORAGE_CONTAINER_NAME || 'tfstate' }}" >> $GITHUB_OUTPUT
-          echo "TF_STATE_STORAGE_FILE=${{ inputs.tfstate_file || 'terraform.tfstate' }}" >> $GITHUB_OUTPUT
-          echo "ARTIFACT_STORAGE_CONTAINER_NAME=${{ secrets.ARTIFACT_STORAGE_CONTAINER_NAME || 'tfartifact' }}" >> $GITHUB_OUTPUT
-
-      - name: Debug backend-vars outputs
-        run: |
-          echo "TF_STATE_SUBSCRIPTION_ID=${{ steps.backend-vars.outputs.TF_STATE_SUBSCRIPTION_ID }}"
-          echo "TF_STATE_RESOURCE_GROUP_NAME=${{ steps.backend-vars.outputs.TF_STATE_RESOURCE_GROUP_NAME }}"
-          echo "TF_STATE_STORAGE_ACCOUNT_NAME=${{ steps.backend-vars.outputs.TF_STATE_STORAGE_ACCOUNT_NAME }}"
-          echo "TF_STATE_STORAGE_CONTAINER_NAME=${{ steps.backend-vars.outputs.TF_STATE_STORAGE_CONTAINER_NAME }}"
-          echo "TF_STATE_STORAGE_FILE=${{ steps.backend-vars.outputs.TF_STATE_STORAGE_FILE }}"
-          echo "ARTIFACT_STORAGE_CONTAINER_NAME=${{ steps.backend-vars.outputs.ARTIFACT_STORAGE_CONTAINER_NAME }}"
+          echo "TF_STATE_SUBSCRIPTION_ID=${{ secrets.TF_STATE_SUBSCRIPTION_ID != '' && secrets.TF_STATE_SUBSCRIPTION_ID || ( secrets.ARM_SUBSCRIPTION_ID != '' && secrets.ARM_SUBSCRIPTION_ID || inputs.azure_subscription_id )}}" >> $GITHUB_ENV
+          echo "TF_STATE_RESOURCE_GROUP_NAME=${{ secrets.TF_STATE_RESOURCE_GROUP_NAME }}" >> $GITHUB_ENV
+          echo "TF_STATE_STORAGE_ACCOUNT_NAME=${{ secrets.TF_STATE_STORAGE_ACCOUNT_NAME }}" >> $GITHUB_ENV
+          echo "TF_STATE_STORAGE_CONTAINER_NAME=${{ secrets.TF_STATE_STORAGE_CONTAINER_NAME || 'tfstate' }}" >> $GITHUB_ENV
+          echo "TF_STATE_STORAGE_FILE=${{ inputs.tfstate_file || 'terraform.tfstate' }}" >> $GITHUB_ENV
+          echo "ARTIFACT_STORAGE_CONTAINER_NAME=${{ secrets.ARTIFACT_STORAGE_CONTAINER_NAME || 'tfartifact' }}" >> $GITHUB_ENV
                 
       - name: Unlock Resource Firewalls
         if: ${{ inputs.unlock_resource_firewalls }}
         uses: kewalaka/github-azure-iac-templates/.github/actions/azure-unlock-firewall@feat/terraform-updates
         with:
           OPERATION: "Allow"
-          TF_STATE_SUBSCRIPTION_ID: ${{ steps.backend-vars.outputs.TF_STATE_SUBSCRIPTION_ID }}
-          TF_STATE_RESOURCE_GROUP_NAME: ${{ steps.backend-vars.outputs.TF_STATE_RESOURCE_GROUP_NAME }}
-          TF_STATE_STORAGE_ACCOUNT_NAME: ${{ steps.backend-vars.outputs.TF_STATE_STORAGE_ACCOUNT_NAME }}
+          TF_STATE_SUBSCRIPTION_ID: ${{ env.TF_STATE_SUBSCRIPTION_ID  }}
+          TF_STATE_RESOURCE_GROUP_NAME: ${{ env.TF_STATE_RESOURCE_GROUP_NAME }}
+          TF_STATE_STORAGE_ACCOUNT_NAME: ${{ env.TF_STATE_STORAGE_ACCOUNT_NAME }}
           EXTRA_FIREWALL_UNLOCKS: "${{ env.EXTRA_FIREWALL_UNLOCKS }}"
 
       - name: Install Terraform
@@ -115,21 +113,21 @@ jobs:
       - name: Check for Terraform Backend Storage and RBAC
         uses: kewalaka/github-azure-iac-templates/.github/actions/terraform-backend@feat/terraform-updates
         with:
-          resource_group_name: ${{ steps.backend-vars.outputs.TF_STATE_RESOURCE_GROUP_NAME }}
-          storage_account_name: ${{ steps.backend-vars.outputs.TF_STATE_STORAGE_ACCOUNT_NAME }}
-          state_container_name: ${{ steps.backend-vars.outputs.TF_STATE_STORAGE_CONTAINER_NAME }}
-          artifact_container_name: ${{ steps.backend-vars.outputs.ARTIFACT_STORAGE_CONTAINER_NAME }}
+          resource_group_name: ${{ env.TF_STATE_RESOURCE_GROUP_NAME }}
+          storage_account_name: ${{ env.TF_STATE_STORAGE_ACCOUNT_NAME }}
+          state_container_name: ${{ env.TF_STATE_STORAGE_CONTAINER_NAME }}
+          artifact_container_name: ${{ env.ARTIFACT_STORAGE_CONTAINER_NAME }}
 
       - name: Terraform Init
         shell: bash
         working-directory: ${{ inputs.root_module_folder_relative_path }}
         run: |
           TF_INIT_CMD="terraform init \
-            -backend-config=\"subscription_id=${{ steps.backend-vars.outputs.TF_STATE_SUBSCRIPTION_ID }}\" \
-            -backend-config=\"resource_group_name=${{ steps.backend-vars.outputs.TF_STATE_RESOURCE_GROUP_NAME }}\" \
-            -backend-config=\"storage_account_name=${{ steps.backend-vars.outputs.TF_STATE_STORAGE_ACCOUNT_NAME }}\" \
-            -backend-config=\"container_name=${{ steps.backend-vars.outputs.TF_STATE_STORAGE_CONTAINER_NAME }}\" \
-            -backend-config=\"key=${{ steps.backend-vars.outputs.TF_STATE_STORAGE_FILE }}\""
+            -backend-config=\"subscription_id=${{ env.TF_STATE_SUBSCRIPTION_ID }}\" \
+            -backend-config=\"resource_group_name=${{ env.TF_STATE_RESOURCE_GROUP_NAME }}\" \
+            -backend-config=\"storage_account_name=${{ env.TF_STATE_STORAGE_ACCOUNT_NAME }}\" \
+            -backend-config=\"container_name=${{ env.TF_STATE_STORAGE_CONTAINER_NAME }}\" \
+            -backend-config=\"key=${{ env.TF_STATE_STORAGE_FILE }}\""
 
           echo "About to run: $TF_INIT_CMD"
           eval $TF_INIT_CMD
@@ -174,8 +172,8 @@ jobs:
           # Upload the artifact to Azure Blob Storage
           az storage blob upload \
             --auth-mode login \
-            --account-name "${{ steps.backend-vars.outputs.TF_STATE_STORAGE_ACCOUNT_NAME }}" \
-            --container-name "${{ steps.backend-vars.outputs.ARTIFACT_STORAGE_CONTAINER_NAME }}" \
+            --account-name "${{ env.TF_STATE_STORAGE_ACCOUNT_NAME }}" \
+            --container-name "${{ env.ARTIFACT_STORAGE_CONTAINER_NAME }}" \
             --file "$archive_name" \
             --name "$archive_name"
 
@@ -184,7 +182,7 @@ jobs:
         uses: kewalaka/github-azure-iac-templates/.github/actions/azure-unlock-firewall@feat/terraform-updates
         with:
           OPERATION: "Deny"
-          TF_STATE_SUBSCRIPTION_ID: ${{ steps.backend-vars.outputs.TF_STATE_SUBSCRIPTION_ID  }}
-          TF_STATE_RESOURCE_GROUP_NAME: ${{ steps.backend-vars.outputs.TF_STATE_RESOURCE_GROUP_NAME }}
-          TF_STATE_STORAGE_ACCOUNT_NAME: ${{ steps.backend-vars.outputs.TF_STATE_STORAGE_ACCOUNT_NAME }}
-          EXTRA_FIREWALL_UNLOCKS: "${{ steps.backend-vars.outputs.EXTRA_FIREWALL_UNLOCKS }}"
+          TF_STATE_SUBSCRIPTION_ID: ${{ env.TF_STATE_SUBSCRIPTION_ID  }}
+          TF_STATE_RESOURCE_GROUP_NAME: ${{ env.TF_STATE_RESOURCE_GROUP_NAME }}
+          TF_STATE_STORAGE_ACCOUNT_NAME: ${{ env.TF_STATE_STORAGE_ACCOUNT_NAME }}
+          EXTRA_FIREWALL_UNLOCKS: "${{ env.EXTRA_FIREWALL_UNLOCKS }}"
