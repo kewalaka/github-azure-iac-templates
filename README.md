@@ -69,7 +69,7 @@ jobs:
       environment_name_plan: "${{ inputs.target_environment }}_plan"
       environment_name_apply: "${{ inputs.target_environment }}_apply"
       tfvars_file: "./environments/${{ inputs.target_environment }}.terraform.tfvars"
-      tfstate_file: "${{ inputs.target_environment }}.tfstate"
+      tf_state_storage_container_key: "${{ inputs.target_environment }}.tfstate"
       destroy_resources: ${{ inputs.destroy_resources == true || inputs.terraform_action == 'destroy' }}
     secrets: inherit
 

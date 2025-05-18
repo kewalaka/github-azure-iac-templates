@@ -34,8 +34,8 @@ on:
         description: 'Terraform CLI Version'
         default: 'latest'
         type: string
-      tfstate_file:
-        description: 'Terraform state file name'
+      tf_state_storage_container_key:
+        description: 'Backend Azure Storage Account Container key for Terraform state, e.g. terraform.tfstate'
         default: 'terraform.tfstate'
         type: string
       unlock_resource_firewalls:
@@ -69,7 +69,7 @@ jobs:
         TF_STATE_RESOURCE_GROUP_NAME: ${{ secrets.TF_STATE_RESOURCE_GROUP_NAME }}
         TF_STATE_STORAGE_ACCOUNT_NAME: ${{ secrets.TF_STATE_STORAGE_ACCOUNT_NAME }}
         TF_STATE_STORAGE_CONTAINER_NAME: ${{ secrets.TF_STATE_STORAGE_CONTAINER_NAME || 'tfstate' }}
-        TF_STATE_STORAGE_FILE: ${{ inputs.tfstate_file || 'terraform.tfstate' }}
+        TF_STATE_STORAGE_CONTAINER_KEY: ${{ inputs.tf_state_storage_container_key || 'terraform.tfstate' }}
         # the artifact storage account is used as a more secure way to store the terraform plan artifact
         ARTIFACT_STORAGE_CONTAINER_NAME:  ${{ secrets.ARTIFACT_STORAGE_CONTAINER_NAME || 'tfartifact' }}
 
@@ -84,7 +84,14 @@ jobs:
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
-                
+
+      - name: Azure Login
+        uses: azure/login@v2
+        with:
+          client-id: ${{ env.ARM_CLIENT_ID }}
+          tenant-id: ${{ env.ARM_TENANT_ID }}
+          subscription-id: ${{ env.TF_STATE_SUBSCRIPTION_ID }}
+        
       - name: Unlock Resource Firewalls
         if: ${{ inputs.unlock_resource_firewalls }}
         uses: kewalaka/github-azure-iac-templates/.github/actions/azure-unlock-firewall@feat/terraform-updates
@@ -118,7 +125,7 @@ jobs:
             -backend-config=\"resource_group_name=${{ env.TF_STATE_RESOURCE_GROUP_NAME }}\" \
             -backend-config=\"storage_account_name=${{ env.TF_STATE_STORAGE_ACCOUNT_NAME }}\" \
             -backend-config=\"container_name=${{ env.TF_STATE_STORAGE_CONTAINER_NAME }}\" \
-            -backend-config=\"key=${{ env.TF_STATE_STORAGE_FILE }}\""
+            -backend-config=\"key=${{ env.TF_STATE_STORAGE_CONTAINER_KEY }}\""
 
           echo "About to run: $TF_INIT_CMD"
           eval $TF_INIT_CMD
