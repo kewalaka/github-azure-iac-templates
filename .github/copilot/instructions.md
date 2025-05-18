@@ -13,7 +13,7 @@ This repository provides reusable GitHub Actions workflows and composite actions
     * `_plan` environment: Contains variables for the plan step.
     * `_apply` environment: Contains the same variables *and* is where deployment protection rules (e.g., required reviewers) should be configured.
     * This two-environment setup is **required** to apply protection rules only to the deployment (`apply`) step. **Do not suggest simplifying to a single environment per target.**
-5. **Firewall Handling (`ipdefault` action):** Includes an *optional* mechanism (`ipdefault` action, `requireStorageAccountFirewallAction` input) to temporarily open Azure Storage/Key Vault firewalls for GitHub runner IPs.
+5. **Firewall Handling (`azure-unlock-firewall` action):** Includes an *optional* mechanism (`azure-unlock-firewall` action, `unlockResourceFirewalls` input) to temporarily open Azure Storage/Key Vault firewalls for GitHub runner IPs.
     * This is an **alternative** for users unable to use self-hosted runners or Private Endpoints.
     * It is **not the recommended** approach for securing access. Prefer network-integrated runners where possible.
 6. **Destroy Operations:** Supports destroy via `terraform_action: destroy` or `terraform_action: apply` combined with the `destroyResources: true` flag. The `destroyResources` flag is also used with `terraform_action: plan` to generate *destroy plans*. This dual mechanism is intentional for flexibility.
@@ -24,9 +24,9 @@ This repository provides reusable GitHub Actions workflows and composite actions
     * Run `terraform plan` (using `terraform-deploy-template.yml` with `terraform_action: plan`) on `pull_request` events targeting the main branch. This typically uses the `_plan` environment.
     * Run `terraform apply` (using `terraform-deploy-template.yml` with `terraform_action: apply`) on `push` events to the main branch (i.e., merges). This uses the `_apply` environment, which should have protection rules.
 
-11. **PR Plan Commenting:** The `terraformplan` composite action includes optional functionality to post a plan summary (from `tfplandoc`) as a comment on Pull Requests.
+11. **PR Plan Commenting:** The `terraform-plan` composite action includes optional functionality to post a plan summary (from `tfplandoc`) as a comment on Pull Requests.
     * This only activates if the workflow is triggered by a `pull_request` event.
-    * It requires the `github_token` input to be passed to the `terraformplan` action (typically `${{ secrets.GITHUB_TOKEN }}` from the calling workflow).
+    * It requires the `github_token` input to be passed to the `terraform-plan` action (typically `${{ secrets.GITHUB_TOKEN }}` from the calling workflow).
     * The **top-level workflow** that initiates the run (e.g., the one triggering on `pull_request`) **must** have `permissions: pull-requests: write` defined for the comment posting to succeed.
 
 ## When Assisting

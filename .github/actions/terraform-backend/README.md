@@ -13,12 +13,12 @@ This composite action checks for the existence of the required Azure Storage Acc
 
 ## Inputs
 
-| Name                    | Required | Description                                  | Default      |
-| :---------------------- | :------- | :------------------------------------------- | :----------- |
-| `resource_group_name`   | `true`   | Name of the **existing** Resource Group for the backend. | |
-| `storage_account_name`  | `true`   | Name of the Storage Account for the backend (max 24 chars, lowercase alphanumeric). |  |
-| `state_container_name`  | `true`   | Name of the container for Terraform state.   | `tfstate` |
-| `artifact_container_name` | `true` | Name of the container for Terraform plan artifacts. | `tfartifact` |
+| Name                      | Required | Description                                  | Default      |
+| :------------------------ | :------- | :------------------------------------------- | :----------- |
+| `resource_group_name`     | `true`   | Name of the **existing** Resource Group for the backend.  | |
+| `storage_account_name`    | `true`   | Name of the Storage Account for the backend (max 24 chars, lowercase alphanumeric). | |
+| `state_container_name`    | `true`   | Name of the container for Terraform state.   | `tfstate`    |
+| `artifact_container_name` | `true`   | Name of the container for Terraform plan artifacts. | `tfartifact` |
 
 ## Environment Variables Used
 
@@ -52,7 +52,7 @@ jobs:
 
       - name: Check for Terraform Backend Storage and RBAC
         # Use relative path if in the same repo
-        uses: ./.github/actions/terraform-backend
+        uses: kewalaka/github-azure-iac-templates/.github/actions/terraform-backend
         # Or full path if calling from another repo
         # uses: your-org/your-repo/.github/actions/terraform-backend@v1.0
         with:

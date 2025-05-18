@@ -72,6 +72,7 @@ jobs:
       # Optional: Could add a validation step here if desired before deploy
 
       - name: Bicep Deploy
+        id: deployment
         uses: ./.github/actions/bicep-deploy
         with:
           deployment_scope: ${{ inputs.deployment_scope }}
@@ -80,3 +81,7 @@ jobs:
           parameters_file_path: ${{ inputs.parameters_file_path }}
           resource_group_name: ${{ inputs.resource_group_name }}
           location: ${{ inputs.location }}
+
+      - name: Print Deployment Outputs
+        run: |
+          echo "intOutput: ${{ steps.deployment.outputs }}"          

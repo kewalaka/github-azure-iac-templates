@@ -63,7 +63,7 @@ permissions:
 jobs:
   call-terraform-deploy:
     name: "Run terraform ${{ inputs.terraform_action }} for ${{ inputs.target_environment }}"
-    uses: kewalaka/github-azure-iac-templates/.github/workflows/terraform-deploy-template.yml@v1.0
+    uses: kewalaka/github-azure-iac-templates/.github/actions/.github/workflows/terraform-deploy-template.yml@v1.0
     with:
       terraform_action: ${{ inputs.terraform_action }}
       plan_target_environment: "${{ inputs.target_environment }}_plan"

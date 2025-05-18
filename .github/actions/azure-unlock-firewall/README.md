@@ -3,7 +3,7 @@
 > [!WARNING]
 > Using either self-hosted or managed runners is preferred to this mechanism.  This action temporarily modifies Azure resource firewall rules to grant access during deployment, and then closes the firewall afterwards.  Using an allow list on the resources is impractical given the large numbers of IP addresses that GitHub-hosted runners can originate from.  
 
-This action is run before and after the terraform init/plan/apply/destroy steps. This is required when using public runners to execute the terraform steps to allow access to the terraform state storage account and any key vaults and storage accounts specified in the EXTRA_FIREWALL_UNLOCKS. Full details of each parameter can be found in the powershell script `Update-IPDefaultAction.ps1`.
+This action is run before and after the terraform init/plan/apply/destroy steps. This is required when using public runners to execute the terraform steps to allow access to the terraform state storage account and any key vaults and storage accounts specified in the EXTRA_FIREWALL_UNLOCKS. Full details of each parameter can be found in the powershell script `Update-azure-unlock-firewallAction.ps1`.
 
 ## Inputs
 
@@ -44,8 +44,8 @@ In the calling workflow templates in this repository this action runs at the sta
 
 ```yaml
 - name: Unlock Resource Firewalls
-  if: ${{ inputs.requireStorageAccountFirewallAction }}
-  uses: <org>/<template repository>/.github/actions/ipdefault
+  if: ${{ inputs.unlockResourceFirewalls }}
+  uses: <org>/<template repository>/.github/actions/azure-unlock-firewall
   with:
     OPERATION: "Allow"
     TF_STATE_SUBSCRIPTION_ID: ${{ env.TF_STATE_SUBSCRIPTION_ID  }}
@@ -54,8 +54,8 @@ In the calling workflow templates in this repository this action runs at the sta
     EXTRA_FIREWALL_UNLOCKS: "${{ env.EXTRA_FIREWALL_UNLOCKS }}"
 
 - name: Lock Resource Firewalls
-  if: ${{ always() && inputs.requireStorageAccountFirewallAction }}
-  uses: <org>/<template repository>/.github/actions/ipdefault
+  if: ${{ always() && inputs.unlockResourceFirewalls }}
+  uses: <org>/<template repository>/.github/actions/azure-unlock-firewall
   with:
     OPERATION: "Deny"
     TF_STATE_SUBSCRIPTION_ID: ${{ env.TF_STATE_SUBSCRIPTION_ID  }}

@@ -12,26 +12,46 @@ inputs:
   destroyResources:
     required: true
     default: 'false'
+  tfvar-list:
+    description: List of extra variables in the form of "key=value,key=value"
+    default: ''
 
 runs:
   using: composite
   steps:
-    - name: Terraform Validate
-      id: tf-validate-action
-      shell: bash
-      working-directory: ${{ inputs.terraform_root_path }}
+    - name: Set additional TF_VARs
+      shell: pwsh
       run: |
-        terraform validate
+        $extraVars=${{ inputs.tfvar-list }}
 
-    - name: Terraform Format Check
-      id: tf-format-action
-      shell: bash
-      working-directory: ${{ inputs.terraform_root_path }}
-      run: |
-        terraform fmt -recursive -check || { echo $'\nFormatting needs to be fixed! Please run "terraform fmt" over your code for the above files:\nhttps://www.terraform.io/docs/commands/fmt.html' ; exit 1; }
+        if ($extraVars.Length -eq 0)
+        {
+          Write-Host "No additional TFVARs supplied"
+          exit 0
+        }
+
+        $tfvars = $extraVars -split ','
+
+        foreach ($tfvar in $tfvars)
+        {
+          try {
+            if ($tfvar.trim() -ne "")
+            {
+              $tfvarName = "TF_VAR_" + ($tfvar -split '=')[0]
+              $tfvarValue = ($tfvar -split '=')[1]
+              Write-Host "Setting environment variable '$tfvarName' to '$tfvarValue'"
+              echo "$tfvarName=$tfvarValue" >> $env:GITHUB_ENV
+            }
+          }
+          catch {
+            Write-Error $_.Exception.Message
+            Write-Host "`nThe terraform-additional-tfvars parameter should be a comma-separated string of key=value pairs, for example: 'myVariable=theValue'"
+            Write-Host "Variable names will be automatically prefixed with TF_VAR_"
+            exit 1
+          }
+        }
 
     - name: Terraform Plan
-      id: tf-plan-action
       shell: bash
       working-directory: ${{ inputs.terraform_root_path }}
       run: |
@@ -52,10 +72,15 @@ runs:
       shell: bash
       working-directory: ${{ inputs.terraform_root_path }}
       run: |
-        curl -L "$(curl -s https://api.github.com/repos/Azure/tfplandoc/releases/latest | grep -o -E "https://.+?_linux_amd64.zip")" > tfplandoc.zip
-        unzip tfplandoc.zip
-        mv tfplandoc_v* tfplandoc
-        sudo install tfplandoc /usr/local/bin
+        INSTALL_TEMP=$RUNNER_TEMP/$(uuidgen)
+        mkdir $INSTALL_TEMP
+
+        echo "Current temp install directory: $INSTALL_TEMP"
+
+        curl -L "$(curl -s https://api.github.com/repos/Azure/tfplandoc/releases/latest | grep -o -E "https://.+?_linux_amd64.zip")" > $INSTALL_TEMP/tfplandoc.zip
+        unzip $INSTALL_TEMP/tfplandoc.zip -d $INSTALL_TEMP
+        mv $INSTALL_TEMP/tfplandoc_v* $INSTALL_TEMP/tfplandoc
+        sudo install $INSTALL_TEMP/tfplandoc /usr/local/bin
         PLAN_SUMMARY=$(terraform show -json tfplan | tfplandoc generate -)
 
         # Output summary to Actions log

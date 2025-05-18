@@ -13,6 +13,20 @@ inputs:
 runs:
   using: composite
   steps:
+    - name: Terraform Validate
+      id: tf-validate-action
+      shell: bash
+      working-directory: ${{ inputs.terraform_root_path }}
+      run: |
+        terraform validate
+
+    - name: Terraform Format Check
+      id: tf-format-action
+      shell: bash
+      working-directory: ${{ inputs.terraform_root_path }}
+      run: |
+        terraform fmt -recursive -check || { echo $'\nFormatting needs to be fixed! Please run "terraform fmt" over your code for the above files:\nhttps://www.terraform.io/docs/commands/fmt.html' ; exit 1; }
+
     - name: Install TFLint
       id: install-tflint-action
       shell: bash
@@ -32,7 +46,13 @@ runs:
           ls -la .tflint.hcl
         fi
 
-        tflint --init
+        if [ -n "${{ inputs.tfvars_file }}" ]; then
+          echo "Initialising tflint with var file: ${{ inputs.tfvars_file }}"
+          tflint --init --var-file "${{ inputs.tfvars_file }}"
+        else
+          echo "Initialising tflint"
+          tflint --init
+        fi
         tflint --enable-plugin=azurerm
         tflint --version
 
