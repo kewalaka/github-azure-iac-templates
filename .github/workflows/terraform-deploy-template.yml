@@ -25,7 +25,7 @@ on:
       tfstate_file:
         description: 'Terraform state file name'
         type: string
-      requireStorageAccountFirewallAction:
+      unlockResourceFirewalls:
         description: 'Unlock firewall for tf state storage and any extra unlocks'
         default: false
         type: boolean
@@ -55,7 +55,7 @@ jobs:
       terraform_root_path: ${{ inputs.terraform_root_path }}
       tfvars_file: ${{ inputs.tfvars_file }}
       tfstate_file: ${{ inputs.tfstate_file }}
-      requireStorageAccountFirewallAction: ${{ inputs.requireStorageAccountFirewallAction }}
+      unlockResourceFirewalls: ${{ inputs.unlockResourceFirewalls }}
       destroyResources: ${{ inputs.destroyResources }}
       bypassChecks: ${{ inputs.bypassChecks }}
       uploadArtifact: ${{ contains(fromJSON('["destroy", "apply"]'), inputs.terraform_action) }}
@@ -72,6 +72,6 @@ jobs:
       target_environment: ${{ inputs.apply_target_environment }}
       terraform_root_path: ${{ inputs.terraform_root_path }}
       tfstate_file: ${{ inputs.tfstate_file }}
-      requireStorageAccountFirewallAction: ${{ inputs.requireStorageAccountFirewallAction }}
+      unlockResourceFirewalls: ${{ inputs.unlockResourceFirewalls }}
       destroyResources: ${{ inputs.destroyResources }}
       azure_subscription_id: ${{ inputs.azure_subscription_id }}
