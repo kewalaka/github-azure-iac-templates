@@ -6,7 +6,7 @@ This action scans the terraform plan output for security issues with resource cr
 
 | Name                  | Required | Description                                                      | Default |
 | :-------------------- | :------- | :--------------------------------------------------------------- | :------ |
-| `terraform_root_path` | `true`   | Relative path to root of Terraform code (usually `./iac`).       |         |
+| `root_module_folder_relative_path` | `true`   | Relative path to root of Terraform code (usually `./iac`).       |         |
 
 ## Outputs
 
@@ -26,15 +26,15 @@ none
 
 ## Usage
 
-In the calling workflow templates in this repository this action runs at the just after the terraform plan. It will only run if bypassChecks is set to false.
+In the calling workflow templates in this repository this action runs at the just after the terraform plan. It will only run if bypass_static_analysis_checks is set to false.
 
 ```yaml
 - name: Terraform Scan
   id: tfcheckov
-  if: ${{ !inputs.bypassChecks }}
+  if: ${{ !inputs.bypass_static_analysis_checks }}
   uses: <org>/<template repository>/.github/actions/checkov-terraform
   with:
-    terraform_root_path: ${{ inputs.terraform_root_path }}
+    root_module_folder_relative_path: ${{ inputs.root_module_folder_relative_path }}
 ```
 
 ## Suppress errors

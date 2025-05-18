@@ -6,8 +6,8 @@ This action is run just after a terraform init and before the plan and runs tfli
 
 | Name                  | Required | Description                  | Default |
 | :-------------------- | :------- | :--------------------------- | :------ |
-| `terraform_root_path` | `true`   | Relative path to root of Terraform code (usually `./iac`).  |  |
-| `tfvars_file`         | `true`   | Comma-separated list of paths to optional tfvars files. Paths are relative to the `terraform_root_path`. | |
+| `root_module_folder_relative_path` | `true`   | Relative path to root of Terraform code (usually `./iac`).  |  |
+| `tfvars_file`         | `true`   | Comma-separated list of paths to optional tfvars files. Paths are relative to the `root_module_folder_relative_path`. | |
 
 ## Outputs
 
@@ -27,21 +27,21 @@ This action uses the following environment variable indirectly via the `tfvars_f
 
 ## Usage
 
-In the calling workflow templates in this repository this action runs the tflint step.  It will only run if bypassChecks is set to false.
+In the calling workflow templates in this repository this action runs the tflint step.  It will only run if bypass_static_analysis_checks is set to false.
 
 ```yaml
 - name: Terraform Lint
   id: tflint
-  if: ${{ !inputs.bypassChecks }}
+  if: ${{ !inputs.bypass_static_analysis_checks }}
   uses: <org>/<template repository>/.github/actions/tflint
   with:
-    terraform_root_path: ${{ inputs.terraform_root_path }}
+    root_module_folder_relative_path: ${{ inputs.root_module_folder_relative_path }}
     tfvars_file: ${{ env.TF_VAR_FILE }}
 ```
 
 ## tflint configuration file
 
-TFLint requires configuration file in the terraform_root_path. called `.tflint.hcl`
+TFLint requires configuration file in the root_module_folder_relative_path. called `.tflint.hcl`
 
 Contents:
 

@@ -3,13 +3,13 @@ id: run-terraform-plan
 description: Runs the Terraform Plan
 
 inputs:
-  terraform_root_path:
+  root_module_folder_relative_path:
     description: 'Relative path to root of Terraform code (usually ./iac)'
     required: true
   tfvars_file:
     description: 'Comma seperated list of paths to optional tfvars files. Paths are relative to the terraform root path.'
     required: true
-  destroyResources:
+  destroy_resources:
     required: true
     default: 'false'
   tfvar-list:
@@ -53,24 +53,24 @@ runs:
 
     - name: Terraform Plan
       shell: bash
-      working-directory: ${{ inputs.terraform_root_path }}
+      working-directory: ${{ inputs.root_module_folder_relative_path }}
       run: |
         echo "Current working directory: $(pwd)"
 
-        echo "Destroy flag set: ${{ inputs.destroyResources }}"
+        echo "Destroy flag set: ${{ inputs.destroy_resources }}"
         echo " "
-        echo "Running terraform plan${{ inputs.destroyResources == 'true' && ' -destroy' || '' }}"
+        echo "Running terraform plan${{ inputs.destroy_resources == 'true' && ' -destroy' || '' }}"
         echo " "
 
         terraform plan \
         $([ -n "${{ inputs.tfvars_file }}" ] && echo "-var-file ${{ inputs.tfvars_file }}" | sed 's/,/ -var-file /') \
         -out=tfplan -input=false \
-        ${{ inputs.destroyResources == 'true' && '-destroy' || '' }}
+        ${{ inputs.destroy_resources == 'true' && '-destroy' || '' }}
 
     - name: Show the Plan for Review
       id: tf-plan-show-action
       shell: bash
-      working-directory: ${{ inputs.terraform_root_path }}
+      working-directory: ${{ inputs.root_module_folder_relative_path }}
       run: |
         INSTALL_TEMP=$RUNNER_TEMP/$(uuidgen)
         mkdir $INSTALL_TEMP

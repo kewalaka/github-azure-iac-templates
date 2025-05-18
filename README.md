@@ -21,7 +21,7 @@ GitHub Environments are used to provide Actions with access to the correct deplo
 
 1. For Terraform only, create:
     * `TF_STATE_RESOURCE_GROUP`: Resource group name containing the Terraform state storage account.
-    * `TF_STATE_BLOB_ACCOUNT`: Storage account name for Terraform state.
+    * `TF_STATE_STORAGE_ACCOUNT_NAME`: Storage account name for Terraform state.
 
 ### Example Usage - Terraform
 
@@ -50,7 +50,7 @@ on:
           - dev
           - test
           - prod
-      destroyResources:
+      destroy_resources:
         type: boolean
         default: false
 
@@ -66,11 +66,11 @@ jobs:
     uses: kewalaka/github-azure-iac-templates/.github/actions/.github/workflows/terraform-deploy-template.yml@v1.0
     with:
       terraform_action: ${{ inputs.terraform_action }}
-      plan_target_environment: "${{ inputs.target_environment }}_plan"
-      apply_target_environment: "${{ inputs.target_environment }}_apply"
+      environment_name_plan: "${{ inputs.target_environment }}_plan"
+      environment_name_apply: "${{ inputs.target_environment }}_apply"
       tfvars_file: "./environments/${{ inputs.target_environment }}.terraform.tfvars"
       tfstate_file: "${{ inputs.target_environment }}.tfstate"
-      destroyResources: ${{ inputs.destroyResources == true || inputs.terraform_action == 'destroy' }}
+      destroy_resources: ${{ inputs.destroy_resources == true || inputs.terraform_action == 'destroy' }}
     secrets: inherit
 
 ```
@@ -91,8 +91,8 @@ You can add these optional **Variables** to your environments (`_plan` and `_app
 | Variable Name | Description | Default |
 | :------------ | :---------- | :------ |
 | `TF_STATE_SUBSCRIPTION_ID`      | Subscription ID for the Terraform state storage, only required if it is not the same as the deployment subscription account.   | `AZURE_SUBSCRIPTION_ID` |
-| `TF_STATE_BLOB_CONTAINER` | Container name within the state storage account. | `tfstate` |
-| `ARTIFACT_BLOB_CONTAINER` | Container name for storing the Terraform plan artifact. | `tfartifact` |
+| `TF_STATE_STORAGE_CONTAINER_NAME` | Container name within the state storage account. | `tfstate` |
+| `ARTIFACT_STORAGE_CONTAINER_NAME` | Container name for storing the Terraform plan artifact. | `tfartifact` |
 | `EXTRA_TF_VARS`           | Comma-separated `key=value` pairs passed as additional `-var` arguments to Terraform (e.g., `containertag=<SHA>,subid=<GUID>`)  This should be used sparingly, only for variables that need to be computed by previous steps. | (none) |
 
 It is possible to specify a list of resource firewalls to unlock during the pipeline run, however we recommend using self-hosted or managed runners instead of this feature:

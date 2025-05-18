@@ -3,7 +3,7 @@ id: run-terraform-checkov-scan
 description: Runs a scan of terraform with Checkov
 
 inputs:
-  terraform_root_path:
+  root_module_folder_relative_path:
     description: 'Relative path to root of Terraform code (usually ./iac)'
     required: true
 
@@ -13,30 +13,30 @@ runs:
     - name: Terraform Show Plan to Json
       id: tf-plan-json-action
       shell: bash
-      working-directory: ${{ inputs.terraform_root_path }}
+      working-directory: ${{ inputs.root_module_folder_relative_path }}
       run: |
         terraform show -json tfplan | jq '.' > tfplan.json
 
     - name: Check for Checkov config
       id: check-checkov-config
       shell: bash
-      working-directory: ${{ inputs.terraform_root_path }}
+      working-directory: ${{ inputs.root_module_folder_relative_path }}
       run: |
         CONFIG_FILE=".checkov.yml"
         if [ ! -f "$CONFIG_FILE" ]; then
-          echo "Checkov config file ($CONFIG_FILE) not found in ${{ inputs.terraform_root_path }}. Copying default config."
+          echo "Checkov config file ($CONFIG_FILE) not found in ${{ inputs.root_module_folder_relative_path }}. Copying default config."
           # Copy the default config from the action's directory
           cp "${{ github.action_path }}/$CONFIG_FILE" .
           ls -la "$CONFIG_FILE"
         else
-          echo "Using existing $CONFIG_FILE config file found in ${{ inputs.terraform_root_path }}."
+          echo "Using existing $CONFIG_FILE config file found in ${{ inputs.root_module_folder_relative_path }}."
         fi
 
     - name: Terraform Scan with Checkov
       id: checkov-scan-action
       uses: bridgecrewio/checkov-action@v12
       with:
-        config_file: ${{ inputs.terraform_root_path }}/.checkov.yml
+        config_file: ${{ inputs.root_module_folder_relative_path }}/.checkov.yml
 
     - name: Upload SARIF file
       uses: github/codeql-action/upload-sarif@v3
@@ -49,4 +49,4 @@ runs:
       if: success() || failure()
       with:
         category: iac
-        sarif_file: ${{ inputs.terraform_root_path }}/results.sarif
+        sarif_file: ${{ inputs.root_module_folder_relative_path }}/results.sarif
