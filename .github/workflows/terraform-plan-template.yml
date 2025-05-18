@@ -84,15 +84,6 @@ jobs:
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
-
-      - name: Expose backend vars as shell environment variables
-        run: |
-          echo "TF_STATE_SUBSCRIPTION_ID=${{ secrets.TF_STATE_SUBSCRIPTION_ID != '' && secrets.TF_STATE_SUBSCRIPTION_ID || ( secrets.ARM_SUBSCRIPTION_ID != '' && secrets.ARM_SUBSCRIPTION_ID || inputs.azure_subscription_id )}}" >> $GITHUB_ENV
-          echo "TF_STATE_RESOURCE_GROUP_NAME=${{ secrets.TF_STATE_RESOURCE_GROUP_NAME }}" >> $GITHUB_ENV
-          echo "TF_STATE_STORAGE_ACCOUNT_NAME=${{ secrets.TF_STATE_STORAGE_ACCOUNT_NAME }}" >> $GITHUB_ENV
-          echo "TF_STATE_STORAGE_CONTAINER_NAME=${{ secrets.TF_STATE_STORAGE_CONTAINER_NAME || 'tfstate' }}" >> $GITHUB_ENV
-          echo "TF_STATE_STORAGE_FILE=${{ inputs.tfstate_file || 'terraform.tfstate' }}" >> $GITHUB_ENV
-          echo "ARTIFACT_STORAGE_CONTAINER_NAME=${{ secrets.ARTIFACT_STORAGE_CONTAINER_NAME || 'tfartifact' }}" >> $GITHUB_ENV
                 
       - name: Unlock Resource Firewalls
         if: ${{ inputs.unlock_resource_firewalls }}
