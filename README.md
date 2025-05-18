@@ -14,13 +14,13 @@ GitHub Environments are used to provide Actions with access to the correct deplo
     * `<env_name>_plan` (e.g., `dev-iac-plan`)
     * `<env_name>_apply` (e.g., `dev-iac-apply`)
 
-1. **Add Required Variables:** Add the following **Variables** to **both** the `_plan` and `_apply` environments you just created:
+1. **Add Required Variables:** Add the following **Variables** to **both** the `-plan` and `-apply` environments you just created:
     * `ARM_CLIENT_ID`: Client ID for the User Assigned Managed Identity used for deployment.
     * `ARM_SUBSCRIPTION_ID`: Target Azure Subscription ID for resource deployment.
     * `ARM_TENANT_ID`: Azure Tenant ID.
 
-1. For Terraform only, create:
-    * `TF_STATE_RESOURCE_GROUP`: Resource group name containing the Terraform state storage account.
+1. For Terraform only, create the following (also in both plan and apply environments):
+    * `TF_STATE_RESOURCE_GROUP_NAME`: Resource group name containing the Terraform state storage account.
     * `TF_STATE_STORAGE_ACCOUNT_NAME`: Storage account name for Terraform state.
 
 ### Example Usage - Terraform
@@ -42,7 +42,7 @@ on:
           - destroy
           - plan
       target_environment:
-        description: 'Select environment'
+        description: 'Select target environment'
         required: true
         type: choice
         default: dev
@@ -51,6 +51,7 @@ on:
           - test
           - prod
       destroy_resources:
+        description: 'Actually destroy resources?'
         type: boolean
         default: false
 
@@ -69,7 +70,6 @@ jobs:
       environment_name_plan: "${{ inputs.target_environment }}_plan"
       environment_name_apply: "${{ inputs.target_environment }}_apply"
       tfvars_file: "./environments/${{ inputs.target_environment }}.terraform.tfvars"
-      tf_state_storage_container_key: "${{ inputs.target_environment }}.tfstate"
       destroy_resources: ${{ inputs.destroy_resources == true || inputs.terraform_action == 'destroy' }}
     secrets: inherit
 
@@ -79,7 +79,7 @@ jobs:
 
 To prevent accidental deployments, configure protection rules on your `_apply` environments:
 
-1. Go to Repository `Settings` -> `Environments` -> `<env_name>_apply`.
+1. Go to Repository `Settings` -> `Environments` -> `<env_name>-iac-apply`.
 1. Under **Deployment protection rules**, enable **Required reviewers**.
 1. Configure reviewers (users or teams) who must approve deployments to this environment.
 1. Save the protection rules.
