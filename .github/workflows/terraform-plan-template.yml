@@ -57,6 +57,8 @@ jobs:
     permissions:
         id-token: write
         contents: read
+        security-events: write
+        pull-requests: write
     env:
         ## azure resource manager vars
         ARM_CLIENT_ID: "${{ secrets.ARM_CLIENT_ID }}"
