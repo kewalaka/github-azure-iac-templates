@@ -2,34 +2,39 @@ name: Terraform apply template
 on:
   workflow_call:
     inputs:
-      runner_name:
-        description: 'The name of the runner pool to run on'
-        type: string
-        default: 'ubuntu-latest'
+      # required inputs
       target_environment:
         description: 'The environment run the workflow against'
         type: string
+
+      # optional inputs
+      azure_subscription_id:
+        description: 'Deployment Subscription ID. Only required if creating a subscription as part of the deployment.  Otherwise uses environment secrets.'
+        type: string
+      destroy_resources:
+        description: 'Run a terraform destroy instead of apply'
+        type: boolean
+        default: false
       root_module_folder_relative_path:
         description: 'Relative path to root of Terraform code (usually ./iac)'
         default: './iac'
         type: string
+      runner_name:
+        description: 'The name of the runner pool to run on'
+        type: string
+        default: 'ubuntu-latest'
+      terraform_cli_version:
+        description: 'Terraform CLI Version'
+        default: 'latest'
+        type: string
       tfstate_file:
         description: 'Terraform state file name'
-        type: string
-      azure_subscription_id:
-        description: 'Deployment Subscription ID. Only required if creating a subscription as part of the deployment. Otherwise use Env vars'
+        default: 'terraform.tfstate'        
         type: string
       unlock_resource_firewalls:
         description: 'Unlock firewall for tf state storage and any extra unlocks'
         default: false
         type: boolean
-      destroy_resources:
-        type: boolean
-        default: false
-      terraform_cli_version:
-        description: 'Terraform CLI Version'
-        default: 'latest'
-        type: string
 
 jobs:
   apply:
@@ -65,7 +70,7 @@ jobs:
     steps:
       - name: Unlock Resource Firewalls
         if: ${{ inputs.unlock_resource_firewalls }}
-        uses: kewalaka/github-azure-iac-templates/.github/actions/azure-unlock-firewall@main
+        uses: kewalaka/github-azure-iac-templates/.github/actions/azure-unlock-firewall@feat/terraform-updates
         with:
           OPERATION: "Allow"
           TF_STATE_SUBSCRIPTION_ID: ${{ env.TF_STATE_SUBSCRIPTION_ID  }}
@@ -96,7 +101,7 @@ jobs:
 
       - name: Terraform Init
         id: init
-        uses: kewalaka/github-azure-iac-templates/.github/actions/terraforminit@main
+        uses: kewalaka/github-azure-iac-templates/.github/actions/terraforminit@feat/terraform-updates
         with:
           root_module_folder_relative_path: ${{ inputs.root_module_folder_relative_path }}
 
@@ -124,7 +129,7 @@ jobs:
                         
       - name: Lock Resource Firewalls
         if: ${{ always() && inputs.unlock_resource_firewalls }}
-        uses: kewalaka/github-azure-iac-templates/.github/actions/azure-unlock-firewall@main
+        uses: kewalaka/github-azure-iac-templates/.github/actions/azure-unlock-firewall@feat/terraform-updates
         with:
           OPERATION: "Deny"
           TF_STATE_SUBSCRIPTION_ID: ${{ env.TF_STATE_SUBSCRIPTION_ID  }}

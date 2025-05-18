@@ -3,47 +3,49 @@ on:
   workflow_call:
     inputs:
       terraform_action:
-        description: 'Run Apply'
+        description: 'Terraform action to run (plan, apply, destroy)'
         type: string
-      runner_name:
-        description: 'The name of the runner pool to run on'
-        type: string
-        default: 'ubuntu-latest'
       environment_name_plan:
-        description: 'The GitHub environment to run the plan job against'
+        description: 'The GitHub environment to run the plan job against.  e.g. dev-iac-plan'
         type: string
       environment_name_apply:
-        description: 'The GitHub environment to run the apply job against'
-        type: string
-      root_module_folder_relative_path:
-        description: 'Relative path to root of Terraform code (usually ./iac)'
-        default: './iac'
+        description: 'The GitHub environment to run the apply job against.  e.g. dev-iac-apply'
         type: string
       tfvars_file:
-        description: 'Comma seperated list of paths to optional tfvars files. Paths are relative to the terraform root path.'
+        description: 'TFvars file that has environment specified settings. Paths are relative to the terraform root path (e.g. ./iac/environments/dev.tfvars)'
         type: string
-      tfstate_file:
-        description: 'Backend Azure Storage Account Container file name (key) for Terraform state'
-        type: string
-      unlock_resource_firewalls:
-        description: 'Unlock firewall for tf state storage and any extra unlocks'
-        default: false
-        type: boolean
-      destroy_resources:
-        type: boolean
-        default: false
-      bypass_static_analysis_checks:
-        type: boolean
-        default: false
+
       azure_subscription_id:
         description: 'Azure Subscription ID for this run (overrides env.ARM_SUBSCRIPTION_ID)'
         required: false
         type: string
         default: ''
+      bypass_static_analysis_checks:
+        type: boolean
+        default: false
+      destroy_resources:
+        type: boolean
+        default: false
+      root_module_folder_relative_path:
+        description: 'Relative path to root of Terraform code (usually ./iac)'
+        default: './iac'
+        type: string
+      runner_name:
+        description: 'The name of the runner pool to run on'
+        type: string
+        default: 'ubuntu-latest'
       terraform_cli_version:
         description: 'Terraform CLI Version'
         default: 'latest'
         type: string
+      tfstate_file:
+        description: 'Backend Azure Storage Account Container file name (key) for Terraform state'
+        default: 'terraform.tfstate'
+        type: string
+      unlock_resource_firewalls:
+        description: 'Unlock firewall for tf state storage and any extra unlocks'
+        default: false
+        type: boolean
 
 permissions:
   id-token: write
