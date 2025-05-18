@@ -66,8 +66,8 @@ jobs:
       bypass_static_analysis_checks: ${{ inputs.bypass_static_analysis_checks }}
       upload_artifact: ${{ contains(fromJSON('["destroy", "apply"]'), inputs.terraform_action) }}
       azure_subscription_id: ${{ inputs.azure_subscription_id }}
-      terraform_version: ${{ inputs.terraform_cli_version }}
-      secrets: inherit
+      terraform_cli_version: ${{ inputs.terraform_cli_version }}
+    secrets: inherit
 
   terraform-apply:
     needs: terraform-plan
@@ -82,4 +82,4 @@ jobs:
       unlock_resource_firewalls: ${{ inputs.unlock_resource_firewalls }}
       destroy_resources: ${{ inputs.destroy_resources }}
       azure_subscription_id: ${{ inputs.azure_subscription_id }}
-      terraform_version: ${{ inputs.terraform_cli_version }}      
+      terraform_cli_version: ${{ inputs.terraform_cli_version }}      
