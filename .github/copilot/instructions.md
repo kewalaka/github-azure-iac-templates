@@ -6,10 +6,10 @@ This repository provides reusable GitHub Actions workflows and composite actions
 
 ## Key Design Principles & Context
 
-1. **Authentication:** Uses Azure OIDC with User-Assigned Managed Identities. Relies on GitHub Environment **Variables** (`AZURE_CLIENT_ID`, `AZURE_SUBSCRIPTION_ID`, `AZURE_TENANT_ID`) for credentials. **Do not suggest changing these to Secrets unless explicitly asked.**
+1. **Authentication:** Uses Azure OIDC with User-Assigned Managed Identities. Relies on GitHub Environment **Variables** (`ARM_CLIENT_ID`, `ARM_SUBSCRIPTION_ID`, `ARM_TENANT_ID`) for credentials. **Do not suggest changing these to Secrets unless explicitly asked.**
 2. **State Management:** Terraform state is stored in Azure Blob Storage, configured via `TF_STATE_*` variables.
 3. **Plan Artifacts:** Terraform plan files (`tfplan`) are passed between `plan` and `apply` jobs using Azure Blob Storage (`ARTIFACT_STORAGE_CONTAINER_NAME` variable and custom `create/download/deleteartifact` actions). This is a deliberate security choice to prevent exposure via standard GitHub artifacts, which are readable by anyone with repository read access. **Do not suggest switching to standard GitHub artifacts.**
-4. **Environment Strategy:** Requires **two** GitHub Environments per target (e.g., `dev_plan`, `dev_apply`).
+4. **Environment Strategy:** Requires **two** GitHub Environments per target (e.g., `dev-iac-plan`, `dev-iac-apply`).
     * `_plan` environment: Contains variables for the plan step.
     * `_apply` environment: Contains the same variables *and* is where deployment protection rules (e.g., required reviewers) should be configured.
     * This two-environment setup is **required** to apply protection rules only to the deployment (`apply`) step. **Do not suggest simplifying to a single environment per target.**
