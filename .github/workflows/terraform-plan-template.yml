@@ -86,6 +86,15 @@ jobs:
           echo "TF_STATE_STORAGE_CONTAINER_NAME=${{ secrets.TF_STATE_STORAGE_CONTAINER_NAME || 'tfstate' }}" >> $GITHUB_OUTPUT
           echo "TF_STATE_STORAGE_FILE=${{ inputs.tfstate_file || 'terraform.tfstate' }}" >> $GITHUB_OUTPUT
           echo "ARTIFACT_STORAGE_CONTAINER_NAME=${{ secrets.ARTIFACT_STORAGE_CONTAINER_NAME || 'tfartifact' }}" >> $GITHUB_OUTPUT
+
+      - name: Debug backend-vars outputs
+        run: |
+          echo "TF_STATE_SUBSCRIPTION_ID=${{ steps.backend-vars.outputs.TF_STATE_SUBSCRIPTION_ID }}"
+          echo "TF_STATE_RESOURCE_GROUP_NAME=${{ steps.backend-vars.outputs.TF_STATE_RESOURCE_GROUP_NAME }}"
+          echo "TF_STATE_STORAGE_ACCOUNT_NAME=${{ steps.backend-vars.outputs.TF_STATE_STORAGE_ACCOUNT_NAME }}"
+          echo "TF_STATE_STORAGE_CONTAINER_NAME=${{ steps.backend-vars.outputs.TF_STATE_STORAGE_CONTAINER_NAME }}"
+          echo "TF_STATE_STORAGE_FILE=${{ steps.backend-vars.outputs.TF_STATE_STORAGE_FILE }}"
+          echo "ARTIFACT_STORAGE_CONTAINER_NAME=${{ steps.backend-vars.outputs.ARTIFACT_STORAGE_CONTAINER_NAME }}"
                 
       - name: Unlock Resource Firewalls
         if: ${{ inputs.unlock_resource_firewalls }}
