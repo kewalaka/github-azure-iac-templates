@@ -168,6 +168,7 @@ jobs:
               -czf "$archive_name" ./*
 
           # Upload the artifact to Azure Blob Storage
+          az account set --subscription ${{ env.TF_STATE_SUBSCRIPTION_ID }} 
           az storage blob upload \
             --auth-mode login \
             --account-name "${{ env.TF_STATE_STORAGE_ACCOUNT_NAME }}" \

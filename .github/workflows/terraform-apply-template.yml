@@ -90,7 +90,7 @@ jobs:
         uses: azure/cli@v2
         with:
           inlineScript: |
-            # todo consider az account set --subscription ${{ env.TF_STATE_SUBSCRIPTION_ID }} 
+            az account set --subscription ${{ env.TF_STATE_SUBSCRIPTION_ID }} 
             az storage blob download \
               --auth-mode login \
               --account-name ${{ env.TF_STATE_STORAGE_ACCOUNT_NAME }} \
@@ -133,6 +133,7 @@ jobs:
         uses: azure/cli@v2
         with:
           inlineScript: |
+            az account set --subscription ${{ env.TF_STATE_SUBSCRIPTION_ID }}
             az storage blob delete \
               --auth-mode login \
               --account-name ${{ env.TF_STATE_STORAGE_ACCOUNT_NAME }} \
