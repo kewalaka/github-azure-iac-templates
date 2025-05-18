@@ -15,6 +15,10 @@ inputs:
   tfvar-list:
     description: List of extra variables in the form of "key=value,key=value"
     default: ''
+  github_token:
+    description: 'GitHub token for posting comments to PRs'
+    required: false
+    default: ''
 
 runs:
   using: composite
@@ -84,9 +88,11 @@ runs:
         PLAN_SUMMARY=$(terraform show -json tfplan | tfplandoc generate -)
 
         # Output summary to Actions log
+        {
         echo "--- Plan Summary ---"
         echo "$PLAN_SUMMARY"
         echo "--- End Plan Summary ---"
+        } | tee -a $GITHUB_STEP_SUMMARY
 
         # Set the multiline output for this step
         echo "summary<<EOF" >> $GITHUB_OUTPUT
@@ -117,4 +123,4 @@ runs:
             issue_number: context.issue.number,
             body: body
           });
-          console.log('Posted plan summary comment to PR #${context.issue.number}');        
+          console.log('Posted plan summary comment to PR #${context.issue.number}');
