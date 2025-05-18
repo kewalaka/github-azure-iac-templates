@@ -55,7 +55,7 @@ jobs:
         ARM_USE_OIDC: true
         ## backend vars
         TF_STATE_SUBSCRIPTION_ID: ${{ secrets.TF_STATE_SUBSCRIPTION_ID != '' && secrets.TF_STATE_SUBSCRIPTION_ID || ( secrets.ARM_SUBSCRIPTION_ID != '' && secrets.ARM_SUBSCRIPTION_ID || inputs.azure_subscription_id )}}
-        TF_STATE_RESOURCE_GROUP: ${{ secrets.TF_STATE_RESOURCE_GROUP }}
+        TF_STATE_RESOURCE_GROUP_NAME: ${{ secrets.TF_STATE_RESOURCE_GROUP_NAME }}
         TF_STATE_STORAGE_ACCOUNT_NAME: ${{ secrets.TF_STATE_STORAGE_ACCOUNT_NAME }}
         TF_STATE_STORAGE_CONTAINER_NAME: ${{ secrets.TF_STATE_STORAGE_CONTAINER_NAME || 'tfstate' }}
         TF_STATE_STORAGE_FILE: ${{ inputs.tfstate_file ||'terraform.tfstate' }}
@@ -74,7 +74,7 @@ jobs:
         with:
           OPERATION: "Allow"
           TF_STATE_SUBSCRIPTION_ID: ${{ env.TF_STATE_SUBSCRIPTION_ID  }}
-          TF_STATE_RESOURCE_GROUP: ${{ env.TF_STATE_RESOURCE_GROUP }}
+          TF_STATE_RESOURCE_GROUP_NAME: ${{ env.TF_STATE_RESOURCE_GROUP_NAME }}
           TF_STATE_STORAGE_ACCOUNT_NAME: ${{ env.TF_STATE_STORAGE_ACCOUNT_NAME }}
           EXTRA_FIREWALL_UNLOCKS: "${{ env.EXTRA_FIREWALL_UNLOCKS }}"
 
@@ -133,6 +133,6 @@ jobs:
         with:
           OPERATION: "Deny"
           TF_STATE_SUBSCRIPTION_ID: ${{ env.TF_STATE_SUBSCRIPTION_ID  }}
-          TF_STATE_RESOURCE_GROUP: ${{ env.TF_STATE_RESOURCE_GROUP }}
+          TF_STATE_RESOURCE_GROUP_NAME: ${{ env.TF_STATE_RESOURCE_GROUP_NAME }}
           TF_STATE_STORAGE_ACCOUNT_NAME: ${{ env.TF_STATE_STORAGE_ACCOUNT_NAME }}
           EXTRA_FIREWALL_UNLOCKS: "${{ env.EXTRA_FIREWALL_UNLOCKS }}"

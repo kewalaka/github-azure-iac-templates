@@ -40,7 +40,7 @@ jobs:
       ARM_CLIENT_ID: ${{ secrets.ARM_CLIENT_ID }}
       ARM_TENANT_ID: ${{ secrets.ARM_TENANT_ID }}
       TF_STATE_SUBSCRIPTION_ID: ${{ secrets.TF_STATE_SUBSCRIPTION_ID || secrets.ARM_SUBSCRIPTION_ID }}
-      TF_STATE_RESOURCE_GROUP: ${{ secrets.TF_STATE_RESOURCE_GROUP }}
+      TF_STATE_RESOURCE_GROUP_NAME: ${{ secrets.TF_STATE_RESOURCE_GROUP_NAME }}
       TF_STATE_STORAGE_ACCOUNT_NAME: ${{ secrets.TF_STATE_STORAGE_ACCOUNT_NAME }}
       TF_STATE_STORAGE_CONTAINER_NAME: ${{ secrets.TF_STATE_STORAGE_CONTAINER_NAME || 'tfstate' }}
       ARTIFACT_STORAGE_CONTAINER_NAME: ${{ secrets.ARTIFACT_STORAGE_CONTAINER_NAME || 'tfartifact' }}
@@ -56,7 +56,7 @@ jobs:
         # Or full path if calling from another repo
         # uses: your-org/your-repo/.github/actions/terraform-backend@v1.0
         with:
-          resource_group_name: ${{ env.TF_STATE_RESOURCE_GROUP }}
+          resource_group_name: ${{ env.TF_STATE_RESOURCE_GROUP_NAME }}
           storage_account_name: ${{ env.TF_STATE_STORAGE_ACCOUNT_NAME }}
           state_container_name: ${{ env.TF_STATE_STORAGE_CONTAINER_NAME }}
           artifact_container_name: ${{ env.ARTIFACT_STORAGE_CONTAINER_NAME }}

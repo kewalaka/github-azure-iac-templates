@@ -49,7 +49,7 @@ In the calling workflow templates in this repository this action runs at the sta
   with:
     OPERATION: "Allow"
     TF_STATE_SUBSCRIPTION_ID: ${{ env.TF_STATE_SUBSCRIPTION_ID  }}
-    TF_STATE_RESOURCE_GROUP: ${{ env.TF_STATE_RESOURCE_GROUP }}
+    TF_STATE_RESOURCE_GROUP_NAME: ${{ env.TF_STATE_RESOURCE_GROUP_NAME }}
     TF_STATE_STORAGE_ACCOUNT_NAME: ${{ env.TF_STATE_STORAGE_ACCOUNT_NAME }}
     EXTRA_FIREWALL_UNLOCKS: "${{ env.EXTRA_FIREWALL_UNLOCKS }}"
 
@@ -59,7 +59,7 @@ In the calling workflow templates in this repository this action runs at the sta
   with:
     OPERATION: "Deny"
     TF_STATE_SUBSCRIPTION_ID: ${{ env.TF_STATE_SUBSCRIPTION_ID  }}
-    TF_STATE_RESOURCE_GROUP: ${{ env.TF_STATE_RESOURCE_GROUP }}
+    TF_STATE_RESOURCE_GROUP_NAME: ${{ env.TF_STATE_RESOURCE_GROUP_NAME }}
     TF_STATE_STORAGE_ACCOUNT_NAME: ${{ env.TF_STATE_STORAGE_ACCOUNT_NAME }}
     EXTRA_FIREWALL_UNLOCKS: "${{ env.EXTRA_FIREWALL_UNLOCKS }}"
 ```
