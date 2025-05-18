@@ -146,11 +146,11 @@ jobs:
           tfvars_file: ${{ env.TF_VAR_FILE }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
 
-      # - name: Terraform Scan
-      #   if: ${{ !inputs.bypass_static_analysis_checks }}
-      #   uses: kewalaka/github-azure-iac-templates/.github/actions/checkov-terraform@feat/terraform-updates
-      #   with:
-      #     root_module_folder_relative_path: ${{ inputs.root_module_folder_relative_path }}
+      - name: Terraform Scan
+        if: ${{ !inputs.bypass_static_analysis_checks }}
+        uses: kewalaka/github-azure-iac-templates/.github/actions/checkov-terraform@feat/terraform-updates
+        with:
+          root_module_folder_relative_path: ${{ inputs.root_module_folder_relative_path }}
 
       - name: Create and Publish Terraform Artifact
         if: ${{ inputs.upload_artifact }}

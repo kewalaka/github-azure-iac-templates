@@ -4,9 +4,37 @@ This action scans the terraform plan output for security issues with resource cr
 
 ## Inputs
 
-| Name                  | Required | Description                                                      | Default |
-| :-------------------- | :------- | :--------------------------------------------------------------- | :------ |
-| `root_module_folder_relative_path` | `true`   | Relative path to root of Terraform code (usually `./iac`).       |         |
+| Name                                   | Required | Description                                                                                      | Default         |
+| :-------------------------------------- | :------- | :----------------------------------------------------------------------------------------------- | :-------------- |
+| `root_module_folder_relative_path`      | `true`   | Relative path to root of Terraform code (usually `./iac`).                                       |                 |
+| `tfvars_file`                          | `false`  | Comma separated list of paths to optional tfvars files. Paths are relative to the terraform root. | `""`            |
+| `checkov_environment_variables`         | `false`  | JSON object of additional environment variables to export before running Checkov.                 | `{}`            |
+
+## Additional parameters syntax
+
+Additional parameters should be formatted as a JSON object. Each key/value will be exported as an environment variable before Checkov runs. This allows you to pass any supported Checkov environment variable or custom variable.
+
+```json
+{ "LOG_LEVEL": "WARNING", "IGNORED_DIRECTORIES": ".terraform", "CHECKOV_SKIP_CHECK": "CKV_AWS_20,CKV_AWS_57" }
+```
+
+For a list of supported environment variables, check the [Checkov code](https://github.com/bridgecrewio/checkov/blob/main/checkov/common/util/env_vars_config.py).
+
+## Example usage
+
+```yaml
+- name: Terraform Scan
+  id: tfcheckov
+  uses: <org>/<template repository>/.github/actions/checkov-terraform
+  with:
+    root_module_folder_relative_path: ${{ inputs.root_module_folder_relative_path }}
+    tfvars_file: ${{ inputs.tfvars_file }}
+    checkov_environment_variables: |
+      {
+        "LOG_LEVEL": "DEBUG",
+        "CHECKOV_SKIP_CHECK": "CKV_AWS_20,CKV_AWS_57"
+      }
+```
 
 ## Outputs
 

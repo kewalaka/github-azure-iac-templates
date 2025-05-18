@@ -82,4 +82,5 @@ jobs:
       unlock_resource_firewalls: ${{ inputs.unlock_resource_firewalls }}
       destroy_resources: ${{ inputs.destroy_resources }}
       azure_subscription_id: ${{ inputs.azure_subscription_id }}
-      terraform_cli_version: ${{ inputs.terraform_cli_version }}      
+      terraform_cli_version: ${{ inputs.terraform_cli_version }}
+    secrets: inherit
