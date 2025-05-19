@@ -82,6 +82,8 @@ jobs:
         EXTRA_FIREWALL_UNLOCKS: ${{ vars.EXTRA_FIREWALL_UNLOCKS }}
         # provide additional terraform variables via TF_VAR_ environment variables
         EXTRA_TF_VARS: ${{ vars.EXTRA_TF_VARS }}
+        # https://developer.hashicorp.com/terraform/tutorials/automation/automate-terraform#controlling-terraform-output-in-automation
+        TF_IN_AUTOMATION: true
 
     steps:
       - name: Checkout Code

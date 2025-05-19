@@ -15,10 +15,6 @@ on:
         description: 'Run a terraform destroy instead of apply'
         type: boolean
         default: false
-      root_module_folder_relative_path:
-        description: 'Relative path to root of Terraform code (usually ./iac)'
-        default: './iac'
-        type: string
       runner_name:
         description: 'The name of the runner pool to run on'
         type: string
@@ -66,6 +62,8 @@ jobs:
         EXTRA_FIREWALL_UNLOCKS: ${{ vars.EXTRA_FIREWALL_UNLOCKS }}
         # provide additional terraform variables via TF_VAR_ environment variables
         EXTRA_TF_VARS: ${{ vars.EXTRA_TF_VARS }}
+        # https://developer.hashicorp.com/terraform/tutorials/automation/automate-terraform#controlling-terraform-output-in-automation
+        TF_IN_AUTOMATION: true
 
     steps:
       - name: Azure Login
@@ -88,8 +86,8 @@ jobs:
       - name: Download Terraform Artifact
         id: download-artifact-action
         shell: bash
-        working-directory: ${{ inputs.root_module_folder_relative_path }}
         run: |
+          echo "Working directory:" $(pwd)
           az account set --subscription ${{ env.TF_STATE_SUBSCRIPTION_ID }} 
           az storage blob download \
             --auth-mode login \
@@ -108,14 +106,14 @@ jobs:
 
       - name: Terraform Init
         shell: bash
-        working-directory: ${{ inputs.root_module_folder_relative_path }}
         run: |
           TF_INIT_CMD="terraform init \
             -backend-config=\"subscription_id=${{ env.TF_STATE_SUBSCRIPTION_ID }}\" \
             -backend-config=\"resource_group_name=${{ env.TF_STATE_RESOURCE_GROUP_NAME }}\" \
             -backend-config=\"storage_account_name=${{ env.TF_STATE_STORAGE_ACCOUNT_NAME }}\" \
             -backend-config=\"container_name=${{ env.TF_STATE_STORAGE_CONTAINER_NAME }}\" \
-            -backend-config=\"key=${{ env.TF_STATE_STORAGE_CONTAINER_KEY }}\""
+            -backend-config=\"key=${{ env.TF_STATE_STORAGE_CONTAINER_KEY }}\"" \
+            -get="false" # don't need to get modules for an apply
 
           echo "About to run: $TF_INIT_CMD"
           eval $TF_INIT_CMD
@@ -123,7 +121,6 @@ jobs:
       - name: Terraform Apply${{ inputs.destroy_resources && ' Destroy' || '' }}
         id: apply
         shell: bash
-        working-directory: ${{ inputs.root_module_folder_relative_path }}
         run: |
           printf "Destroy flag set: ${{ inputs.destroy_resources }}\n"
           terraform apply -input=false -auto-approve tfplan
@@ -131,7 +128,6 @@ jobs:
       - name: Delete Terraform Artifact
         if: ${{ always() }}      
         shell: bash
-        working-directory: ${{ inputs.root_module_folder_relative_path }}
         run: |        
           az account set --subscription ${{ env.TF_STATE_SUBSCRIPTION_ID }}
           az storage blob delete \

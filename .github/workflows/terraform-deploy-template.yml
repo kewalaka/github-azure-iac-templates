@@ -79,7 +79,6 @@ jobs:
     with:
       runner_name: ${{ inputs.runner_name }}
       target_environment: ${{ inputs.environment_name_apply }}
-      root_module_folder_relative_path: ${{ inputs.root_module_folder_relative_path }}
       tf_state_storage_container_key: ${{ inputs.tf_state_storage_container_key }}
       unlock_resource_firewalls: ${{ inputs.unlock_resource_firewalls }}
       destroy_resources: ${{ inputs.destroy_resources }}
