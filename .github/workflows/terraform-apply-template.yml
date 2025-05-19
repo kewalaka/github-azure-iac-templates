@@ -96,7 +96,7 @@ jobs:
             --file "./${{ github.run_id }}.tar.gz" \
             --name "${{ github.run_id }}.tar.gz"
           tar -xzf "./${{ github.run_id }}.tar.gz" -C ./
-          ls -l ./
+          ls -al ./
 
       - name: Install Terraform
         uses: hashicorp/setup-terraform@v3
