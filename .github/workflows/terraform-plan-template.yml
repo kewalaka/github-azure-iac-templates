@@ -162,14 +162,15 @@ jobs:
         working-directory: ${{ inputs.root_module_folder_relative_path }}
         run: |
           set -e
+          INSTALL_TEMP=$RUNNER_TEMP/$(uuidgen)
+          mkdir $INSTALL_TEMP
           archive_name="${GITHUB_RUN_ID}.tar.gz"
 
           # Create a tar.gz archive of the current directory, excluding unwanted folders
-          tar --exclude='$archive_name' \
-              --exclude='.git' \
+          tar --exclude='.git' \
               --exclude='.terraform/providers' \
               --exclude='.github' \
-              -czf "$archive_name" .
+              -czf "$INSTALL_TEMP/$archive_name" .
 
           # Upload the artifact to Azure Blob Storage
           az account set --subscription ${{ env.TF_STATE_SUBSCRIPTION_ID }} 
@@ -177,7 +178,7 @@ jobs:
             --auth-mode login \
             --account-name "${{ env.TF_STATE_STORAGE_ACCOUNT_NAME }}" \
             --container-name "${{ env.ARTIFACT_STORAGE_CONTAINER_NAME }}" \
-            --file "$archive_name" \
+            --file "$INSTALL_TEMP/$archive_name" \
             --name "$archive_name"
 
       - name: Lock Resource Firewalls
