@@ -166,9 +166,8 @@ jobs:
 
           # Create a tar.gz archive of the current directory, excluding unwanted folders
           tar --exclude='.git' \
-              --exclude='.terraform' \
+              --exclude='.terraform/providers' \
               --exclude='.github' \
-              --exclude='staging' \
               -czf "$archive_name" ./*
 
           # Upload the artifact to Azure Blob Storage
