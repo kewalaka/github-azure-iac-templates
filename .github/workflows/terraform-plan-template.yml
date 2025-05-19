@@ -168,7 +168,7 @@ jobs:
 
           # Create a tar.gz archive of the current directory, excluding unwanted folders
           tar --exclude='.git' \
-              --exclude='.terraform/providers' \
+              --exclude='.terraform' \
               --exclude='.github' \
               -czf "$INSTALL_TEMP/$archive_name" .
 
