@@ -87,18 +87,18 @@ jobs:
 
       - name: Download Terraform Artifact
         id: download-artifact-action
-        uses: azure/cli@v2
-        with:
-          inlineScript: |
-            az account set --subscription ${{ env.TF_STATE_SUBSCRIPTION_ID }} 
-            az storage blob download \
-              --auth-mode login \
-              --account-name ${{ env.TF_STATE_STORAGE_ACCOUNT_NAME }} \
-              --container-name "${{ env.ARTIFACT_STORAGE_CONTAINER_NAME }}" \
-              --file "./${{ github.run_id }}.tar.gz" \
-              --name "${{ github.run_id }}.tar.gz"
-            tar -xzf "./${{ github.run_id }}.tar.gz" -C ./
-            ls -l ./
+        shell: bash
+        working-directory: ${{ inputs.root_module_folder_relative_path }}
+        run: |
+          az account set --subscription ${{ env.TF_STATE_SUBSCRIPTION_ID }} 
+          az storage blob download \
+            --auth-mode login \
+            --account-name ${{ env.TF_STATE_STORAGE_ACCOUNT_NAME }} \
+            --container-name "${{ env.ARTIFACT_STORAGE_CONTAINER_NAME }}" \
+            --file "./${{ github.run_id }}.tar.gz" \
+            --name "${{ github.run_id }}.tar.gz"
+          tar -xzf "./${{ github.run_id }}.tar.gz" -C ./
+          ls -l ./
 
       - name: Install Terraform
         uses: hashicorp/setup-terraform@v3
@@ -130,16 +130,16 @@ jobs:
 
       - name: Delete Terraform Artifact
         if: ${{ always() }}      
-        uses: azure/cli@v2
-        with:
-          inlineScript: |
-            az account set --subscription ${{ env.TF_STATE_SUBSCRIPTION_ID }}
-            az storage blob delete \
-              --auth-mode login \
-              --account-name ${{ env.TF_STATE_STORAGE_ACCOUNT_NAME }} \
-              --container-name "${{ env.ARTIFACT_STORAGE_CONTAINER_NAME }}" \
-              --name "${{ github.run_id }}.zip" \
-              --delete-snapshots include
+        shell: bash
+        working-directory: ${{ inputs.root_module_folder_relative_path }}
+        run: |        
+          az account set --subscription ${{ env.TF_STATE_SUBSCRIPTION_ID }}
+          az storage blob delete \
+            --auth-mode login \
+            --account-name ${{ env.TF_STATE_STORAGE_ACCOUNT_NAME }} \
+            --container-name "${{ env.ARTIFACT_STORAGE_CONTAINER_NAME }}" \
+            --name "${{ github.run_id }}.tar.gz" \
+            --delete-snapshots include
                         
       - name: Lock Resource Firewalls
         if: ${{ always() && inputs.unlock_resource_firewalls }}
