@@ -35,6 +35,10 @@ on:
       uploadArtifact:
         type: boolean
         default: true
+      enable_infracost:
+        description: 'Enable Infracost cost estimation'
+        type: boolean
+        default: false
 
 jobs:
   plan:
@@ -63,6 +67,7 @@ jobs:
         EXTRA_FIREWALL_UNLOCKS: ${{ vars.EXTRA_FIREWALL_UNLOCKS }}
         EXTRA_TF_VARS: ${{ vars.EXTRA_TF_VARS }}
         ARTIFACT_BLOB_CONTAINER:  ${{ vars.ARTIFACT_BLOB_CONTAINER || 'tfartifact' }}
+        INFRACOST_API_KEY: ${{ secrets.INFRACOST_API_KEY }}
 
     steps:
       - name: Checkout Code
@@ -120,6 +125,7 @@ jobs:
           destroyResources: ${{ inputs.destroyResources }}
           tfvars_file: ${{ env.TF_VAR_FILE }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
+          enable_infracost: ${{ inputs.enable_infracost }}
 
       - name: "Upload Artifact"
         id: upload

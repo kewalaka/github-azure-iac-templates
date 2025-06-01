@@ -1,0 +1,84 @@
+name: Run Infracost
+id: run-infracost
+description: Runs Infracost to generate cost estimates for Terraform changes
+
+inputs:
+  terraform_root_path:
+    description: 'Relative path to root of Terraform code (usually ./iac)'
+    required: true
+  tfvars_file:
+    description: 'Comma separated list of paths to optional tfvars files. Paths are relative to the terraform root path.'
+    required: false
+  infracost_api_key:
+    description: 'Infracost API key for cost estimation'
+    required: true
+
+outputs:
+  cost_summary:
+    description: 'Cost estimation summary from Infracost'
+    value: ${{ steps.infracost-output.outputs.cost_summary }}
+
+runs:
+  using: composite
+  steps:
+    - name: Setup Infracost
+      uses: infracost/actions/setup@v3
+      with:
+        api-key: ${{ inputs.infracost_api_key }}
+
+    - name: Generate Infracost cost estimate baseline
+      id: infracost-baseline
+      shell: bash
+      working-directory: ${{ inputs.terraform_root_path }}
+      run: |
+        # Generate cost estimate for current state (baseline)
+        infracost breakdown --path=. \
+          $([ -n "${{ inputs.tfvars_file }}" ] && echo "--terraform-var-file ${{ inputs.tfvars_file }}" | sed 's/,/ --terraform-var-file /g') \
+          --format=json \
+          --out-file=/tmp/infracost-base.json || true
+
+    - name: Generate Infracost cost estimate for planned changes
+      id: infracost-diff
+      shell: bash
+      working-directory: ${{ inputs.terraform_root_path }}
+      run: |
+        # Generate cost diff using the plan file
+        if [ -f "tfplan" ]; then
+          infracost diff --path=tfplan \
+            --format=table \
+            --out-file=/tmp/infracost-diff.txt || true
+            
+          # Also generate JSON format for potential future use
+          infracost diff --path=tfplan \
+            --format=json \
+            --out-file=/tmp/infracost-diff.json || true
+        else
+          echo "No tfplan file found, skipping cost diff generation"
+          echo "No Terraform plan file available for cost analysis." > /tmp/infracost-diff.txt
+        fi
+
+    - name: Format cost summary
+      id: infracost-output
+      shell: bash
+      run: |
+        # Check if infracost diff was generated successfully
+        if [ -f "/tmp/infracost-diff.txt" ] && [ -s "/tmp/infracost-diff.txt" ]; then
+          echo "## 💰 Cost Estimation" > /tmp/cost-summary.md
+          echo "" >> /tmp/cost-summary.md
+          echo "The following cost estimate shows the monthly cost difference for the planned infrastructure changes:" >> /tmp/cost-summary.md
+          echo "" >> /tmp/cost-summary.md
+          echo '```' >> /tmp/cost-summary.md
+          cat /tmp/infracost-diff.txt >> /tmp/cost-summary.md
+          echo '```' >> /tmp/cost-summary.md
+          echo "" >> /tmp/cost-summary.md
+          echo "*Cost estimates are provided by [Infracost](https://www.infracost.io/) and may not include all Azure pricing factors.*" >> /tmp/cost-summary.md
+        else
+          echo "## 💰 Cost Estimation" > /tmp/cost-summary.md
+          echo "" >> /tmp/cost-summary.md
+          echo "Cost estimation is not available for this Terraform plan." >> /tmp/cost-summary.md
+        fi
+        
+        # Set the output
+        echo "cost_summary<<EOF" >> $GITHUB_OUTPUT
+        cat /tmp/cost-summary.md >> $GITHUB_OUTPUT
+        echo "EOF" >> $GITHUB_OUTPUT
