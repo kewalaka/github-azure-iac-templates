@@ -15,10 +15,6 @@ inputs:
   github_token:
     description: 'GitHub token for posting comments'
     required: false
-  enable_infracost:
-    description: 'Enable Infracost cost estimation'
-    required: false
-    default: 'false'
 
 runs:
   using: composite
@@ -76,15 +72,6 @@ runs:
         echo "EOF" >> $GITHUB_OUTPUT
         echo "Plan summary set as step output."
 
-    - name: Generate Cost Estimate
-      id: infracost
-      if: inputs.enable_infracost == 'true'
-      uses: ./.github/actions/infracost
-      with:
-        terraform_root_path: ${{ inputs.terraform_root_path }}
-        tfvars_file: ${{ inputs.tfvars_file }}
-        infracost_api_key: ${{ env.INFRACOST_API_KEY }}
-
     - name: Post Plan Summary to PR
       if: inputs.github_token != '' && github.event_name == 'pull_request'
       uses: actions/github-script@v7
@@ -93,7 +80,6 @@ runs:
         script: |
           // Access the output from the previous step directly
           const planSummary = `${{ steps.tf-plan-show-action.outputs.summary }}`;
-          const costSummary = `${{ steps.infracost.outputs.cost_summary }}`;
           const runUrl = `${process.env.GITHUB_SERVER_URL}/${process.env.GITHUB_REPOSITORY}/actions/runs/${process.env.GITHUB_RUN_ID}`;
 
           if (!planSummary || planSummary.trim() === '') {
@@ -101,14 +87,7 @@ runs:
             return;
           }
 
-          let body = `## Terraform Plan Summary\n\n${planSummary}`;
-          
-          // Add cost summary if available
-          if (costSummary && costSummary.trim() !== '' && costSummary !== 'undefined') {
-            body += `\n\n${costSummary}`;
-          }
-          
-          body += `\n\n---\n*View full plan output in the [GitHub Actions run](${runUrl}).*`;
+          const body = `## Terraform Plan Summary\n\n${planSummary}\n\n---\n*View full plan output in the [GitHub Actions run](${runUrl}).*`;
 
           await github.rest.issues.createComment({
             owner: context.repo.owner,
