@@ -17,20 +17,11 @@ runs:
       run: |
         terraform show -json tfplan | jq '.' > tfplan.json
 
-    - name: Check for Checkov config
-      id: check-checkov-config
-      shell: bash
-      working-directory: ${{ inputs.terraform_root_path }}
-      run: |
-        CONFIG_FILE=".checkov.yml"
-        if [ ! -f "$CONFIG_FILE" ]; then
-          echo "Checkov config file ($CONFIG_FILE) not found in ${{ inputs.terraform_root_path }}. Copying default config."
-          # Copy the default config from the action's directory
-          cp "${{ github.action_path }}/$CONFIG_FILE" .
-          ls -la "$CONFIG_FILE"
-        else
-          echo "Using existing $CONFIG_FILE config file found in ${{ inputs.terraform_root_path }}."
-        fi
+    - name: Setup Checkov
+      uses: ./.github/actions/setup-checkov
+      with:
+        working_directory: ${{ inputs.terraform_root_path }}
+        config_source_path: ${{ github.action_path }}/.checkov.yml
 
     - name: Terraform Scan with Checkov
       id: checkov-scan-action

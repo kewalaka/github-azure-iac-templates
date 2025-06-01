@@ -17,14 +17,7 @@ inputs:
 runs:
   using: "composite"
   steps:
-    - name: Install Checkov
-      shell: bash
-      run: |
-        pip install checkov # Or use docker image etc.
-
     - name: Build Bicep to ARM JSON
-      # Only run if compiled_arm_path is not provided
-      # if: inputs.compiled_arm_path == ''
       shell: bash
       working-directory: ${{ inputs.bicep_root_path }}
       run: |
@@ -32,18 +25,11 @@ runs:
         az bicep build --file ${{ inputs.bicep_file_path }} --outfile compiled.arm.json
         echo "COMPILED_ARM_JSON=${{ inputs.bicep_root_path }}/compiled.arm.json" >> $GITHUB_ENV
 
-    - name: Prepare Checkov Config
-      shell: bash
-      working-directory: ${{ inputs.bicep_root_path }}
-      run: |
-        CONFIG_FILE=".checkov.yml"
-        if [ ! -f "$CONFIG_FILE" ]; then
-          echo "Checkov config file ($CONFIG_FILE) not found. Copying default config."
-          cp "${{ github.action_path }}/.checkov.yml" .
-          ls -la "$CONFIG_FILE"
-        else
-          echo "Using existing $CONFIG_FILE."
-        fi
+    - name: Setup Checkov
+      uses: ./.github/actions/setup-checkov
+      with:
+        working_directory: ${{ inputs.bicep_root_path }}
+        config_source_path: ${{ github.action_path }}/.checkov.yml
 
     - name: Run Checkov Scan
       id: checkov-scan-action
