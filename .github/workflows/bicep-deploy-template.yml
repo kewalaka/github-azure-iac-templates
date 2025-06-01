@@ -1,101 +1,91 @@
-name: Bicep Deploy Template
-
+name: Bicep deploy template
 on:
   workflow_call:
     inputs:
       bicep_action:
-        description: 'Action to perform: plan (what-if) or deploy'
-        required: true
+        description: 'Run Plan or Deploy'
         type: string
       runner_name:
         description: 'The name of the runner pool to run on'
         type: string
         default: 'ubuntu-latest'
       plan_target_environment:
-        description: 'The GitHub environment name to run the plan job against'
+        description: 'The environment to run the plan job against'
         type: string
       apply_target_environment:
-        description: 'The GitHub environment name to run the apply job against'
+        description: 'The environment to run the apply job against'
         type: string
-      deployment_scope:
-        description: 'Scope of the deployment: resourceGroup or subscription'
-        required: false
-        type: string
-        default: 'resourceGroup'
-      deployment_stack_name:
-        description: 'Name for the Azure Deployment Stack'
-        required: true
-        type: string
-      bicep_file_path:
-        description: 'Path to the main Bicep file (e.g., infra/main.bicep)'
-        required: true
+      bicep_root_path:
+        description: 'Relative path to root of Bicep code (usually ./iac)'
+        default: './iac'
         type: string
       parameters_file_path:
-        description: 'Path to the Bicep parameters file (e.g., infra/parameters/dev.parameters.json)'
-        required: true
+        description: 'Path to bicep parameters file. Path is relative to the bicep root path.'
         type: string
+      deployment_name:
+        description: 'Name for the deployment'
+        type: string
+      deployment_scope:
+        description: 'Scope of deployment: resourceGroup, subscription, or managementGroup'
+        type: string
+        default: 'resourceGroup'
       resource_group_name:
         description: 'Azure Resource Group name (required if scope is resourceGroup)'
-        required: false
+        type: string
+        default: ''
+      management_group_id:
+        description: 'Management Group ID (required if scope is managementGroup)'
         type: string
         default: ''
       location:
-        description: 'Azure region for deployment stack metadata and potentially resources'
-        required: true
+        description: 'Azure region for deployment'
         type: string
       bypass_checks:
-        description: 'Set to true to bypass linting and security scans in the plan phase'
-        required: false
         type: boolean
         default: false
-      github_token: # Only needed for PR commenting during plan
-        description: 'GitHub token for PR comments'
+      azure_subscription_id:
+        description: 'Azure Subscription ID for this run (overrides env.ARM_SUBSCRIPTION_ID)'
         required: false
         type: string
         default: ''
-    secrets: # Allow passing Azure credentials
-      ARM_CLIENT_ID:
-        required: false
-      ARM_CLIENT_SECRET:
-        required: false
-      ARM_TENANT_ID:
-        required: false
-      ARM_SUBSCRIPTION_ID:
-        required: false
 
 permissions:
-  id-token: write # Required for Azure OIDC login
-  contents: read # Required to checkout code
-  pull-requests: write # Required for PR commenting in the plan phase
+  id-token: write
+  contents: read
 
 jobs:
   bicep-plan:
-    name: "Run Bicep plan (what-if) for ${{ inputs.plan_target_environment || 'default' }}"
-    if: ${{ inputs.bicep_action == 'plan' || inputs.bicep_action == 'deploy' }}
+    name: "Run bicep plan for ${{ inputs.plan_target_environment }}"
     uses: ./.github/workflows/bicep-plan-template.yml
     with:
-      deployment_scope: ${{ inputs.deployment_scope }}
-      deployment_stack_name: ${{ inputs.deployment_stack_name }}
-      bicep_file_path: ${{ inputs.bicep_file_path }}
+      runner_name: ${{ inputs.runner_name }}
+      target_environment: ${{ inputs.plan_target_environment }}
+      bicep_root_path: ${{ inputs.bicep_root_path }}
       parameters_file_path: ${{ inputs.parameters_file_path }}
+      deployment_name: ${{ inputs.deployment_name }}
+      deployment_scope: ${{ inputs.deployment_scope }}
       resource_group_name: ${{ inputs.resource_group_name }}
+      management_group_id: ${{ inputs.management_group_id }}
       location: ${{ inputs.location }}
       bypass_checks: ${{ inputs.bypass_checks }}
-      github_token: ${{ inputs.github_token }}
-      target_environment: ${{ inputs.plan_target_environment }}
+      azure_subscription_id: ${{ inputs.azure_subscription_id }}
+      upload_artifact: ${{ inputs.bicep_action == 'deploy' }}
     secrets: inherit
 
   bicep-apply:
     needs: bicep-plan
-    name: "Run Bicep apply (deploy) for ${{ inputs.apply_target_environment || 'default' }}"
+    name: "Run bicep deploy for ${{ inputs.apply_target_environment }}"
     if: ${{ inputs.bicep_action == 'deploy' }}
     uses: ./.github/workflows/bicep-apply-template.yml
     with:
-      deployment_scope: ${{ inputs.deployment_scope }}
-      deployment_stack_name: ${{ inputs.deployment_stack_name }}
-      bicep_file_path: ${{ inputs.bicep_file_path }}
-      parameters_file_path: ${{ inputs.parameters_file_path }}
-      resource_group_name: ${{ inputs.resource_group_name }}
-      location: ${{ inputs.location }}
+      runner_name: ${{ inputs.runner_name }}
       target_environment: ${{ inputs.apply_target_environment }}
-    secrets: inherit 
+      bicep_root_path: ${{ inputs.bicep_root_path }}
+      parameters_file_path: ${{ inputs.parameters_file_path }}
+      deployment_name: ${{ inputs.deployment_name }}
+      deployment_scope: ${{ inputs.deployment_scope }}
+      resource_group_name: ${{ inputs.resource_group_name }}
+      management_group_id: ${{ inputs.management_group_id }}
+      location: ${{ inputs.location }}
+      azure_subscription_id: ${{ inputs.azure_subscription_id }}
+    secrets: inherit

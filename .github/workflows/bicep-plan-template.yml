@@ -1,73 +1,66 @@
-# filepath: /.github/workflows/bicep-plan-template.yml
-name: Reusable Bicep Plan (What-If)
-
+name: Bicep plan template
 on:
   workflow_call:
     inputs:
-      deployment_scope:
-        description: 'Scope of the deployment: resourceGroup or subscription'
-        required: false
+      runner_name:
+        description: 'The name of the runner pool to run on'
         type: string
-        default: 'resourceGroup'
-      deployment_stack_name:
-        description: 'Name for the Azure Deployment Stack'
-        required: true
+        default: 'ubuntu-latest'
+      target_environment:
+        description: 'The environment run the workflow against'
         type: string
-      bicep_file_path:
-        description: 'Path to the main Bicep file (e.g., infra/main.bicep)'
-        required: true
+      bicep_root_path:
+        description: 'Relative path to root of Bicep code (usually ./iac)'
+        default: './iac'
         type: string
       parameters_file_path:
-        description: 'Path to the Bicep parameters file (e.g., infra/parameters/dev.parameters.json)'
-        required: true
+        description: 'Path to bicep parameters file. Path is relative to the bicep root path.'
         type: string
+      deployment_name:
+        description: 'Name for the deployment'
+        type: string
+      deployment_scope:
+        description: 'Scope of deployment: resourceGroup, subscription, or managementGroup'
+        type: string
+        default: 'resourceGroup'
       resource_group_name:
         description: 'Azure Resource Group name (required if scope is resourceGroup)'
-        required: false
+        type: string
+        default: ''
+      management_group_id:
+        description: 'Management Group ID (required if scope is managementGroup)'
         type: string
         default: ''
       location:
-        description: 'Azure region for deployment stack metadata and potentially resources'
-        required: true
+        description: 'Azure region for deployment'
+        type: string
+      azure_subscription_id:
+        description: 'Deployment Subscription ID. Only required if creating a subscription as part of the deployment. Otherwise use Env vars'
         type: string
       bypass_checks:
-        description: 'Set to true to bypass linting and security scans'
-        required: false
         type: boolean
         default: false
-      github_token: # Only needed for PR commenting
-        description: 'GitHub token for PR comments'
-        required: false
-        type: string
-        default: ''
-      target_environment: # Optional: For linking to GitHub Environment
-        description: 'Name of the GitHub Environment to associate the job with'
-        required: false
-        type: string
-        default: ''
-    secrets: # Allow passing Azure credentials
-      ARM_CLIENT_ID:
-        required: false
-      ARM_CLIENT_SECRET:
-        required: false
-      ARM_TENANT_ID:
-        required: false
-      ARM_SUBSCRIPTION_ID:
-        required: false
-
-env:
-  ARM_CLIENT_ID: ${{ secrets.ARM_CLIENT_ID }}
-  ARM_CLIENT_SECRET: ${{ secrets.ARM_CLIENT_SECRET }}
-  ARM_TENANT_ID: ${{ secrets.ARM_TENANT_ID }}
-  ARM_SUBSCRIPTION_ID: ${{ secrets.ARM_SUBSCRIPTION_ID }}
-  # Define Bicep root relative to checkout path (adjust if needed)
-  BICEP_ROOT_PATH: '.' # Assuming Bicep files are relative to repo root
+      upload_artifact:
+        type: boolean
+        default: true
 
 jobs:
   plan:
-    name: "Bicep Plan (What-If)"
-    runs-on: ubuntu-latest
-    environment: ${{ inputs.target_environment }} # Link to GitHub Environment if provided
+    name: "Bicep Plan"
+    runs-on: ${{ inputs.runner_name }}
+    environment: ${{ inputs.target_environment }}
+    permissions:
+        id-token: write
+        contents: read
+    env:
+        ## azure resource manager vars
+        ARM_CLIENT_ID: "${{ vars.AZURE_CLIENT_ID }}"
+        ARM_SUBSCRIPTION_ID: "${{ inputs.azure_subscription_id || vars.AZURE_SUBSCRIPTION_ID }}"
+        ARM_TENANT_ID: "${{ vars.AZURE_TENANT_ID }}"
+        ARM_USE_AZUREAD: true
+        ARM_USE_OIDC: true
+        BICEP_ROOT_PATH: ${{ inputs.bicep_root_path }}
+        DEPLOYMENT_NAME: ${{ inputs.deployment_name || 'bicep-deployment' }}
 
     steps:
       - name: Checkout Code
@@ -86,37 +79,126 @@ jobs:
         uses: ./.github/actions/bicep-lint
         with:
           bicep_root_path: ${{ env.BICEP_ROOT_PATH }}
-          bicep_file_path: ${{ inputs.bicep_file_path }}
+          bicep_file_path: ${{ env.BICEP_ROOT_PATH }}/main.bicep
 
-      - name: Bicep Validate
-        id: validate
-        if: ${{ !inputs.bypass_checks }}
-        uses: ./.github/actions/bicep-validate
-        with:
-          deployment_scope: ${{ inputs.deployment_scope }}
-          deployment_stack_name: ${{ inputs.deployment_stack_name }}
-          bicep_file_path: ${{ inputs.bicep_file_path }}
-          parameters_file_path: ${{ inputs.parameters_file_path }}
-          resource_group_name: ${{ inputs.resource_group_name }}
-          location: ${{ inputs.location }}
-          # outfile_path: ${{ env.BICEP_ROOT_PATH }}/compiled.arm.json # If needed for scan
-
-      - name: Bicep Scan (Checkov)
-        if: ${{ !inputs.bypass_checks }}
-        uses: ./.github/actions/checkov-bicep
-        with:
-          bicep_file_path: ${{ inputs.bicep_file_path }}
-          bicep_root_path: ${{ env.BICEP_ROOT_PATH }}
-          # compiled_arm_path: ${{ steps.validate.outputs.outfile_path }} # If validate outputs path
+      - name: Bicep Build & Validate
+        id: build
+        shell: bash
+        working-directory: ${{ env.BICEP_ROOT_PATH }}
+        run: |
+          echo "Building and validating Bicep template..."
+          
+          # Build the Bicep file to ARM template
+          az bicep build --file main.bicep --outfile compiled.arm.json
+          
+          # Validate based on scope
+          case "${{ inputs.deployment_scope }}" in
+            resourceGroup)
+              if [[ -z "${{ inputs.resource_group_name }}" ]]; then
+                echo "Error: resource_group_name is required for resourceGroup scope"
+                exit 1
+              fi
+              az deployment group validate \
+                --resource-group "${{ inputs.resource_group_name }}" \
+                --template-file compiled.arm.json \
+                $([[ -n "${{ inputs.parameters_file_path }}" ]] && echo "--parameters ${{ inputs.parameters_file_path }}" || echo "")
+              ;;
+            subscription)
+              az deployment sub validate \
+                --location "${{ inputs.location }}" \
+                --template-file compiled.arm.json \
+                $([[ -n "${{ inputs.parameters_file_path }}" ]] && echo "--parameters ${{ inputs.parameters_file_path }}" || echo "")
+              ;;
+            managementGroup)
+              if [[ -z "${{ inputs.management_group_id }}" ]]; then
+                echo "Error: management_group_id is required for managementGroup scope"
+                exit 1
+              fi
+              az deployment mg validate \
+                --management-group-id "${{ inputs.management_group_id }}" \
+                --location "${{ inputs.location }}" \
+                --template-file compiled.arm.json \
+                $([[ -n "${{ inputs.parameters_file_path }}" ]] && echo "--parameters ${{ inputs.parameters_file_path }}" || echo "")
+              ;;
+            *)
+              echo "Error: Unsupported deployment scope: ${{ inputs.deployment_scope }}"
+              echo "Supported scopes: resourceGroup, subscription, managementGroup"
+              exit 1
+              ;;
+          esac
+          
+          echo "Bicep validation completed successfully"
 
       - name: Bicep What-If
         id: whatif
-        uses: ./.github/actions/bicep-what-if
+        shell: bash
+        working-directory: ${{ env.BICEP_ROOT_PATH }}
+        run: |
+          echo "Running Bicep What-If analysis..."
+          
+          # Run what-if based on scope
+          case "${{ inputs.deployment_scope }}" in
+            resourceGroup)
+              WHATIF_OUTPUT=$(az deployment group what-if \
+                --resource-group "${{ inputs.resource_group_name }}" \
+                --template-file compiled.arm.json \
+                $([[ -n "${{ inputs.parameters_file_path }}" ]] && echo "--parameters ${{ inputs.parameters_file_path }}" || echo "") \
+                --result-format FullResourcePayloads)
+              ;;
+            subscription)
+              WHATIF_OUTPUT=$(az deployment sub what-if \
+                --location "${{ inputs.location }}" \
+                --template-file compiled.arm.json \
+                $([[ -n "${{ inputs.parameters_file_path }}" ]] && echo "--parameters ${{ inputs.parameters_file_path }}" || echo "") \
+                --result-format FullResourcePayloads)
+              ;;
+            managementGroup)
+              WHATIF_OUTPUT=$(az deployment mg what-if \
+                --management-group-id "${{ inputs.management_group_id }}" \
+                --location "${{ inputs.location }}" \
+                --template-file compiled.arm.json \
+                $([[ -n "${{ inputs.parameters_file_path }}" ]] && echo "--parameters ${{ inputs.parameters_file_path }}" || echo "") \
+                --result-format FullResourcePayloads)
+              ;;
+          esac
+          
+          echo "--- What-If Output ---"
+          echo "$WHATIF_OUTPUT"
+          echo "--- End What-If Output ---"
+          
+          # Set output for PR commenting
+          echo "summary<<EOF" >> $GITHUB_OUTPUT
+          echo "$WHATIF_OUTPUT" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+      - name: Bicep Scan
+        id: bicep-checkov
+        if: ${{ !inputs.bypass_checks }}
+        uses: ./.github/actions/checkov-bicep
         with:
-          deployment_scope: ${{ inputs.deployment_scope }}
-          deployment_stack_name: ${{ inputs.deployment_stack_name }}
-          bicep_file_path: ${{ inputs.bicep_file_path }}
-          parameters_file_path: ${{ inputs.parameters_file_path }}
-          resource_group_name: ${{ inputs.resource_group_name }}
-          location: ${{ inputs.location }}
-          github_token: ${{ inputs.github_token }} # Pass token for commenting
+          bicep_file_path: main.bicep
+          bicep_root_path: ${{ env.BICEP_ROOT_PATH }}
+
+      - name: Post What-If Summary to PR
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const whatIfOutput = `${{ steps.whatif.outputs.summary }}`;
+            const runUrl = `${process.env.GITHUB_SERVER_URL}/${process.env.GITHUB_REPOSITORY}/actions/runs/${process.env.GITHUB_RUN_ID}`;
+
+            if (!whatIfOutput || whatIfOutput.trim() === '') {
+              console.log('What-if output is empty, skipping comment.');
+              return;
+            }
+
+            const body = `## Bicep What-If Summary\n\n<details><summary>Click to expand What-If Output</summary>\n\n\`\`\`\n${whatIfOutput}\n\`\`\`\n\n</details>\n\n---\n*View full logs in the [GitHub Actions run](${runUrl}).*`;
+
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              body: body.substring(0, 65535) // Ensure comment isn't too long
+            });
+            console.log('Posted Bicep what-if comment to PR #${context.issue.number}');

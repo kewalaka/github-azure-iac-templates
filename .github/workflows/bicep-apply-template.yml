@@ -1,61 +1,60 @@
-# filepath: /.github/workflows/bicep-apply-template.yml
-name: Reusable Bicep Apply (Deploy)
-
+name: Bicep apply template
 on:
   workflow_call:
     inputs:
-      deployment_scope:
-        description: 'Scope of the deployment: resourceGroup or subscription'
-        required: false
+      runner_name:
+        description: 'The name of the runner pool to run on'
         type: string
-        default: 'resourceGroup'
-      deployment_stack_name:
-        description: 'Name for the Azure Deployment Stack'
-        required: true
+        default: 'ubuntu-latest'
+      target_environment:
+        description: 'The environment run the workflow against'
         type: string
-      bicep_file_path:
-        description: 'Path to the main Bicep file (e.g., infra/main.bicep)'
-        required: true
+      bicep_root_path:
+        description: 'Relative path to root of Bicep code (usually ./iac)'
+        default: './iac'
         type: string
       parameters_file_path:
-        description: 'Path to the Bicep parameters file (e.g., infra/parameters/dev.parameters.json)'
-        required: true
+        description: 'Path to bicep parameters file. Path is relative to the bicep root path.'
         type: string
+      deployment_name:
+        description: 'Name for the deployment'
+        type: string
+      deployment_scope:
+        description: 'Scope of deployment: resourceGroup, subscription, or managementGroup'
+        type: string
+        default: 'resourceGroup'
       resource_group_name:
         description: 'Azure Resource Group name (required if scope is resourceGroup)'
-        required: false
+        type: string
+        default: ''
+      management_group_id:
+        description: 'Management Group ID (required if scope is managementGroup)'
         type: string
         default: ''
       location:
-        description: 'Azure region for deployment stack metadata and potentially resources'
-        required: true
+        description: 'Azure region for deployment'
         type: string
-      target_environment: # Optional: For linking to GitHub Environment
-        description: 'Name of the GitHub Environment to associate the job with'
-        required: false
+      azure_subscription_id:
+        description: 'Deployment Subscription ID. Only required if creating a subscription as part of the deployment. Otherwise use Env vars'
         type: string
-        default: ''
-    secrets: # Allow passing Azure credentials
-      ARM_CLIENT_ID:
-        required: false
-      ARM_CLIENT_SECRET:
-        required: false
-      ARM_TENANT_ID:
-        required: false
-      ARM_SUBSCRIPTION_ID:
-        required: false
-
-env:
-  ARM_CLIENT_ID: ${{ secrets.ARM_CLIENT_ID }}
-  ARM_CLIENT_SECRET: ${{ secrets.ARM_CLIENT_SECRET }}
-  ARM_TENANT_ID: ${{ secrets.ARM_TENANT_ID }}
-  ARM_SUBSCRIPTION_ID: ${{ secrets.ARM_SUBSCRIPTION_ID }}
 
 jobs:
   apply:
-    name: "Bicep Apply (Deploy)"
-    runs-on: ubuntu-latest
-    environment: ${{ inputs.target_environment }} # Link to GitHub Environment if provided
+    name: "Bicep Apply"
+    runs-on: ${{ inputs.runner_name }}
+    environment: ${{ inputs.target_environment }}
+    permissions:
+        id-token: write
+        contents: read
+    env:
+        ## azure resource manager vars
+        ARM_CLIENT_ID: "${{ vars.AZURE_CLIENT_ID }}"
+        ARM_SUBSCRIPTION_ID: "${{ inputs.azure_subscription_id || vars.AZURE_SUBSCRIPTION_ID }}"
+        ARM_TENANT_ID: "${{ vars.AZURE_TENANT_ID }}"
+        ARM_USE_AZUREAD: true
+        ARM_USE_OIDC: true
+        BICEP_ROOT_PATH: ${{ inputs.bicep_root_path }}
+        DEPLOYMENT_NAME: ${{ inputs.deployment_name || 'bicep-deployment' }}
 
     steps:
       - name: Checkout Code
@@ -69,14 +68,50 @@ jobs:
           subscription-id: ${{ env.ARM_SUBSCRIPTION_ID }}
           enable-AzPSSession: false
 
-      # Optional: Could add a validation step here if desired before deploy
-
       - name: Bicep Deploy
-        uses: ./.github/actions/bicep-deploy
-        with:
-          deployment_scope: ${{ inputs.deployment_scope }}
-          deployment_stack_name: ${{ inputs.deployment_stack_name }}
-          bicep_file_path: ${{ inputs.bicep_file_path }}
-          parameters_file_path: ${{ inputs.parameters_file_path }}
-          resource_group_name: ${{ inputs.resource_group_name }}
-          location: ${{ inputs.location }}
+        id: deploy
+        shell: bash
+        working-directory: ${{ env.BICEP_ROOT_PATH }}
+        run: |
+          echo "Deploying Bicep template..."
+          
+          # Deploy based on scope
+          case "${{ inputs.deployment_scope }}" in
+            resourceGroup)
+              if [[ -z "${{ inputs.resource_group_name }}" ]]; then
+                echo "Error: resource_group_name is required for resourceGroup scope"
+                exit 1
+              fi
+              az deployment group create \
+                --resource-group "${{ inputs.resource_group_name }}" \
+                --name "${{ env.DEPLOYMENT_NAME }}" \
+                --template-file main.bicep \
+                $([[ -n "${{ inputs.parameters_file_path }}" ]] && echo "--parameters ${{ inputs.parameters_file_path }}" || echo "")
+              ;;
+            subscription)
+              az deployment sub create \
+                --location "${{ inputs.location }}" \
+                --name "${{ env.DEPLOYMENT_NAME }}" \
+                --template-file main.bicep \
+                $([[ -n "${{ inputs.parameters_file_path }}" ]] && echo "--parameters ${{ inputs.parameters_file_path }}" || echo "")
+              ;;
+            managementGroup)
+              if [[ -z "${{ inputs.management_group_id }}" ]]; then
+                echo "Error: management_group_id is required for managementGroup scope"
+                exit 1
+              fi
+              az deployment mg create \
+                --management-group-id "${{ inputs.management_group_id }}" \
+                --location "${{ inputs.location }}" \
+                --name "${{ env.DEPLOYMENT_NAME }}" \
+                --template-file main.bicep \
+                $([[ -n "${{ inputs.parameters_file_path }}" ]] && echo "--parameters ${{ inputs.parameters_file_path }}" || echo "")
+              ;;
+            *)
+              echo "Error: Unsupported deployment scope: ${{ inputs.deployment_scope }}"
+              echo "Supported scopes: resourceGroup, subscription, managementGroup"
+              exit 1
+              ;;
+          esac
+          
+          echo "Bicep deployment completed successfully"
