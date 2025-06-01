@@ -11,17 +11,17 @@ It is designed to be used with 'multi-environment' solutions (i.e. those that ne
 GitHub Environments are used to provide Actions with access to the correct deployment target and identity.
 
 1. **Create Environments:** Navigate to `Settings` -> `Environments`, create two for each target environment:
-    * `<env_name>_plan` (e.g., `dev_plan`)
-    * `<env_name>_apply` (e.g., `dev_apply`)
+    * `<env_name>_plan` (e.g., `dev-iac-plan`)
+    * `<env_name>_apply` (e.g., `dev-iac-apply`)
 
-1. **Add Required Variables:** Add the following **Variables** to **both** the `_plan` and `_apply` environments you just created:
-    * `AZURE_CLIENT_ID`: Client ID for the User Assigned Managed Identity used for deployment.
-    * `AZURE_SUBSCRIPTION_ID`: Target Azure Subscription ID for resource deployment.
-    * `AZURE_TENANT_ID`: Azure Tenant ID.
+1. **Add Required Variables:** Add the following **Variables** to **both** the `-plan` and `-apply` environments you just created:
+    * `ARM_CLIENT_ID`: Client ID for the User Assigned Managed Identity used for deployment.
+    * `ARM_SUBSCRIPTION_ID`: Target Azure Subscription ID for resource deployment.
+    * `ARM_TENANT_ID`: Azure Tenant ID.
 
-1. For Terraform only, create:
-    * `TF_STATE_RESOURCE_GROUP`: Resource group name containing the Terraform state storage account.
-    * `TF_STATE_BLOB_ACCOUNT`: Storage account name for Terraform state.
+1. For Terraform only, create the following (also in both plan and apply environments):
+    * `TF_STATE_RESOURCE_GROUP_NAME`: Resource group name containing the Terraform state storage account.
+    * `TF_STATE_STORAGE_ACCOUNT_NAME`: Storage account name for Terraform state.
 
 ### Example Usage - Terraform
 
@@ -42,7 +42,7 @@ on:
           - destroy
           - plan
       target_environment:
-        description: 'Select environment'
+        description: 'Select target environment'
         required: true
         type: choice
         default: dev
@@ -50,7 +50,8 @@ on:
           - dev
           - test
           - prod
-      destroyResources:
+      destroy_resources:
+        description: 'Actually destroy resources?'
         type: boolean
         default: false
 
@@ -63,14 +64,13 @@ permissions:
 jobs:
   call-terraform-deploy:
     name: "Run terraform ${{ inputs.terraform_action }} for ${{ inputs.target_environment }}"
-    uses: kewalaka/github-azure-iac-templates/.github/workflows/terraform-deploy-template.yml@v1.0
+    uses: kewalaka/github-azure-iac-templates/.github/actions/.github/workflows/terraform-deploy-template.yml@v1.0
     with:
       terraform_action: ${{ inputs.terraform_action }}
-      plan_target_environment: "${{ inputs.target_environment }}_plan"
-      apply_target_environment: "${{ inputs.target_environment }}_apply"
+      environment_name_plan: "${{ inputs.target_environment }}_plan"
+      environment_name_apply: "${{ inputs.target_environment }}_apply"
       tfvars_file: "./environments/${{ inputs.target_environment }}.terraform.tfvars"
-      tfstate_file: "${{ inputs.target_environment }}.tfstate"
-      destroyResources: ${{ inputs.destroyResources == true || inputs.terraform_action == 'destroy' }}
+      destroy_resources: ${{ inputs.destroy_resources == true || inputs.terraform_action == 'destroy' }}
     secrets: inherit
 
 ```
@@ -79,7 +79,7 @@ jobs:
 
 To prevent accidental deployments, configure protection rules on your `_apply` environments:
 
-1. Go to Repository `Settings` -> `Environments` -> `<env_name>_apply`.
+1. Go to Repository `Settings` -> `Environments` -> `<env_name>-iac-apply`.
 1. Under **Deployment protection rules**, enable **Required reviewers**.
 1. Configure reviewers (users or teams) who must approve deployments to this environment.
 1. Save the protection rules.
@@ -90,9 +90,9 @@ You can add these optional **Variables** to your environments (`_plan` and `_app
 
 | Variable Name | Description | Default |
 | :------------ | :---------- | :------ |
-| `TF_STATE_SUBSCRIPTION_ID`      | Subscription ID for the Terraform state storage, only required if it is not the same as the deployment subscription account.   | `AZURE_SUBSCRIPTION_ID` |
-| `TF_STATE_BLOB_CONTAINER` | Container name within the state storage account. | `tfstate` |
-| `ARTIFACT_BLOB_CONTAINER` | Container name for storing the Terraform plan artifact. | `tfartifact` |
+| `TF_STATE_SUBSCRIPTION_ID`      | Subscription ID for the Terraform state storage, only required if it is not the same as the deployment subscription account.   | `ARM_SUBSCRIPTION_ID` |
+| `TF_STATE_STORAGE_CONTAINER_NAME` | Container name within the state storage account. | `tfstate` |
+| `ARTIFACT_STORAGE_CONTAINER_NAME` | Container name for storing the Terraform plan artifact. | `tfartifact` |
 | `EXTRA_TF_VARS`           | Comma-separated `key=value` pairs passed as additional `-var` arguments to Terraform (e.g., `containertag=<SHA>,subid=<GUID>`)  This should be used sparingly, only for variables that need to be computed by previous steps. | (none) |
 
 It is possible to specify a list of resource firewalls to unlock during the pipeline run, however we recommend using self-hosted or managed runners instead of this feature:

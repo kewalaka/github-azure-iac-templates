@@ -20,23 +20,26 @@ inputs:
 runs:
   using: "composite"
   steps:
-    - name: Login to Azure
-      uses: azure/login@v1
-      with:
-        client-id: ${{ env.ARM_CLIENT_ID }}
-        tenant-id: ${{ env.ARM_TENANT_ID }}
-        subscription-id: ${{ env.TF_STATE_SUBSCRIPTION_ID }}
-        enable-AzPSSession: true
-
     - name: Ensure Terraform Backend Storage and RBAC
-      uses: azure/powershell@v2
-      with:
-        # Use inlineScript to call the external script, passing parameters
-        inlineScript: |
-          ${{ github.action_path }}/Deploy-TerraformBackend.ps1 `
-            -ResourceGroupName '${{ inputs.resource_group_name }}' `
-            -StorageAccountName '${{ inputs.storage_account_name }}' `
-            -StateContainerName '${{ inputs.state_container_name }}' `
-            -ArtifactContainerName '${{ inputs.artifact_container_name }}'
-        azPSVersion: "latest"
-        errorActionPreference: Stop # Ensure script errors fail the step
+      shell: bash
+      run: |
+        bash ${{ github.action_path }}/deploy-terraform-backend.sh \
+          --resource-group '${{ inputs.resource_group_name }}' \
+          --storage-account '${{ inputs.storage_account_name }}' \
+          --state-container '${{ inputs.state_container_name }}' \
+          --artifact-container '${{ inputs.artifact_container_name }}'
+
+# we pass outputs from inputs because the user may override the defaults.
+outputs:
+  resource_group_name:
+    description: 'Terraform State Resource Group Name'
+    value: ${{ inputs.resource_group_name }}
+  storage_account_name:
+    description: 'Terraform State Storage Account Name'
+    value: ${{ inputs.storage_account_name }}
+  state_container_name:
+    description: 'Terraform State Container Name'
+    value: ${{ inputs.state_container_name }}
+  artifact_container_name:
+    description: 'Terraform Artifact Container Name'
+    value: ${{ inputs.artifact_container_name }}

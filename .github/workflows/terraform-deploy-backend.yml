@@ -1,0 +1,47 @@
+name: Deploy Terraform state file backend
+on:
+  workflow_call:
+    inputs:
+      target_environment:
+        description: 'The environment run the workflow against'
+        type: string
+
+env:
+  tf_state_resource_group_name: ${{ secrets.TF_STATE_RESOURCE_GROUP_NAME }}
+  tf_state_storage_account_name: ${{ secrets.TF_STATE_STORAGE_ACCOUNT_NAME }}
+
+run-name: ${{ github.workflow }} - Terraform Backend for GitHub Environment (${{ inputs.target_environment }}) by @${{ github.actor }}
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  terraform-plan:
+    name: "Deploy Terraform Backend (${{ inputs.target_environment }})"
+    runs-on: ubuntu-latest
+    environment: "${{ inputs.target_environment }}"
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Login to Azure
+        uses: azure/login@v1
+        with:
+          client-id: ${{ secrets.ARM_CLIENT_ID }}
+          tenant-id: ${{ secrets.ARM_TENANT_ID }}
+          subscription-id: ${{ secrets.ARM_SUBSCRIPTION_ID }}
+        env:
+          ARM_USE_OIDC: true
+          ARM_USE_AZUREAD: true
+
+      - name: Deploy Terraform Backend
+        uses: kewalaka/github-azure-iac-templates/.github/actions/terraform-backend@feat/terraform-updates
+        with:
+          resource_group_name: ${{ env.tf_state_resource_group_name }}
+          storage_account_name: ${{ env.tf_state_storage_account_name }}
+          artifact_container_name: "tfartifact"
+        env:
+          ARM_CLIENT_ID: ${{ secrets.ARM_CLIENT_ID }}
+          ARM_TENANT_ID: ${{ secrets.ARM_TENANT_ID }}
+          TF_STATE_SUBSCRIPTION_ID: ${{ secrets.ARM_SUBSCRIPTION_ID }}

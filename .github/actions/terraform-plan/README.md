@@ -8,9 +8,9 @@ Optionally, if triggered by a `pull_request` event and provided with a suitable 
 
 | Name                  | Required | Description                                                                                                | Default   |
 | :-------------------- | :------- | :--------------------------------------------------------------------------------------------------------- | :-------- |
-| `terraform_root_path` | `true`   | Relative path to the root of the Terraform code (usually `./iac`).                                         |           |
-| `tfvars_file`         | `true`   | Comma-separated list of paths to optional tfvars files. Paths are relative to the `terraform_root_path`. |           |
-| `destroyResources`    | `false`  | Set to `true` to generate a destroy plan instead of a standard plan.                                       | `'false'` |
+| `root_module_folder_relative_path` | `true`   | Relative path to the root of the Terraform code (usually `./iac`).                                         |           |
+| `tfvars_file`         | `true`   | Comma-separated list of paths to optional tfvars files. Paths are relative to the `root_module_folder_relative_path`. |           |
+| `destroy_resources`    | `false`  | Set to `true` to generate a destroy plan instead of a standard plan.                                       | `'false'` |
 | `github_token`        | `false`  | GitHub token (`secrets.GITHUB_TOKEN`) used for posting plan summaries to Pull Requests. Required for PR commenting. | `''`      |
 
 ## Outputs
@@ -44,12 +44,12 @@ In the calling workflow templates in this repository, this action runs the `terr
 ```yaml
 # Example within a calling workflow (e.g., terraform-deploy-template.yml)
 
-- name: "Terraform Plan${{ inputs.destroyResources && ' Destroy' || '' }}"
+- name: "Terraform Plan${{ inputs.destroy_resources && ' Destroy' || '' }}"
   id: plan
-  uses: <org>/<template repository>/.github/actions/terraformplan # Adjust path/version
+  uses: <org>/<template repository>/.github/actions/terraform-plan # Adjust path/version
   with:
-    terraform_root_path: ${{ inputs.terraform_root_path }}
-    destroyResources: ${{ inputs.destroyResources }}
+    root_module_folder_relative_path: ${{ inputs.root_module_folder_relative_path }}
+    destroy_resources: ${{ inputs.destroy_resources }}
     tfvars_file: ${{ env.TF_VAR_FILE }}
     # Pass the token to enable PR commenting when applicable
     github_token: ${{ secrets.GITHUB_TOKEN }}
