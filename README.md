@@ -4,6 +4,8 @@ This repository is a collection of GitHub Actions useful for deploying Terraform
 
 For Terraform, Azure Blob Storage is used for state and plan artifacts.
 
+For Bicep, Azure Deployment Stacks are used to manage infrastructure as an atomic unit, providing lifecycle management and preventing resource drift.
+
 It is designed to be used with 'multi-environment' solutions (i.e. those that need to deploy similar code to dev, test, prod, etc), with support for commonly required checks such as linting and code security static analysis.
 
 ## Quick Start
@@ -75,6 +77,68 @@ jobs:
 
 ```
 
+### Example Usage - Bicep Deployment Stacks
+
+Create a workflow file (e.g., `.github/workflows/deploy-bicep.yml`) in your repository with the following content. This example uses `workflow_dispatch` for manual triggering:
+
+```yaml
+name: Bicep Deployment Stacks
+
+on:
+  workflow_dispatch:
+    inputs:
+      bicep_action:
+        description: 'Bicep Action'
+        default: deploy
+        type: choice
+        options:
+          - deploy
+          - plan
+      target_environment:
+        description: 'Select environment'
+        required: true
+        type: choice
+        default: dev
+        options:  # options should match your configured environments (e.g., dev, test, prod)
+          - dev
+          - test
+          - prod
+      deployment_scope:
+        description: 'Deployment scope'
+        required: true
+        type: choice
+        default: resourceGroup
+        options:
+          - resourceGroup
+          - subscription
+          - managementGroup
+
+run-name: Bicep ${{ inputs.bicep_action }} (${{ inputs.target_environment }}) by @${{ github.actor }}
+
+permissions:
+  id-token: write # Required for OIDC authentication
+  contents: read  # Required to checkout code
+  pull-requests: write # Required for PR commenting during plan
+
+jobs:
+  call-bicep-deploy:
+    name: "Run bicep ${{ inputs.bicep_action }} for ${{ inputs.target_environment }}"
+    uses: kewalaka/github-azure-iac-templates/.github/workflows/bicep-deploy-template.yml@v1.0
+    with:
+      bicep_action: ${{ inputs.bicep_action }}
+      plan_target_environment: "${{ inputs.target_environment }}_plan"
+      apply_target_environment: "${{ inputs.target_environment }}_apply"
+      deployment_scope: ${{ inputs.deployment_scope }}
+      deployment_stack_name: "${{ inputs.target_environment }}-stack"
+      bicep_file_path: "./infra/main.bicep"
+      parameters_file_path: "./infra/parameters/${{ inputs.target_environment }}.parameters.json"
+      resource_group_name: "${{ inputs.deployment_scope == 'resourceGroup' && format('rg-{0}', inputs.target_environment) || '' }}"
+      management_group_id: "${{ inputs.deployment_scope == 'managementGroup' && 'your-mg-id' || '' }}"
+      location: "eastus"
+    secrets: inherit
+
+```
+
 ## Recommendation: Add Protection Rules
 
 To prevent accidental deployments, configure protection rules on your `_apply` environments:
@@ -86,7 +150,9 @@ To prevent accidental deployments, configure protection rules on your `_apply` e
 
 ## Optional Variables
 
-You can add these optional **Variables** to your environments (`_plan` and `_apply`) to customize behavior:
+### Terraform Variables
+
+You can add these optional **Variables** to your environments (`_plan` and `_apply`) to customize Terraform behavior:
 
 | Variable Name | Description | Default |
 | :------------ | :---------- | :------ |
@@ -94,6 +160,17 @@ You can add these optional **Variables** to your environments (`_plan` and `_app
 | `TF_STATE_BLOB_CONTAINER` | Container name within the state storage account. | `tfstate` |
 | `ARTIFACT_BLOB_CONTAINER` | Container name for storing the Terraform plan artifact. | `tfartifact` |
 | `EXTRA_TF_VARS`           | Comma-separated `key=value` pairs passed as additional `-var` arguments to Terraform (e.g., `containertag=<SHA>,subid=<GUID>`)  This should be used sparingly, only for variables that need to be computed by previous steps. | (none) |
+
+### Bicep Variables
+
+For Bicep deployment stacks, you can add these optional **Variables** to your environments:
+
+| Variable Name | Description | Default |
+| :------------ | :---------- | :------ |
+| `BICEP_ACTION_ON_UNMANAGE` | What happens to resources no longer managed after stack update/delete. Options: `deleteAll`, `deleteResources`, `detachAll` | `detachAll` |
+| `BICEP_DENY_SETTINGS_MODE` | Operations denied on stack-managed resources. Options: `denyDelete`, `denyWriteAndDelete`, `none` | `none` |
+
+### Common Variables
 
 It is possible to specify a list of resource firewalls to unlock during the pipeline run, however we recommend using self-hosted or managed runners instead of this feature:
 

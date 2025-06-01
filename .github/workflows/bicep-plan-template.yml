@@ -115,8 +115,8 @@ jobs:
           resource_group_name: ${{ inputs.resource_group_name }}
           management_group_id: ${{ inputs.management_group_id }}
           location: ${{ inputs.location }}
-          action_on_unmanage: ${{ inputs.action_on_unmanage }}
-          deny_settings_mode: ${{ inputs.deny_settings_mode }}
+          action_on_unmanage: ${{ vars.BICEP_ACTION_ON_UNMANAGE || inputs.action_on_unmanage }}
+          deny_settings_mode: ${{ vars.BICEP_DENY_SETTINGS_MODE || inputs.deny_settings_mode }}
           # outfile_path: ${{ env.BICEP_ROOT_PATH }}/compiled.arm.json # If needed for scan
 
       - name: Bicep Scan (Checkov)
