@@ -1,0 +1,110 @@
+---
+name: PR Validation
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches: [main]
+
+permissions:
+  id-token: write  # Required for OIDC authentication
+  contents: read   # Required to checkout code
+  pull-requests: write  # Required for PR commenting
+
+jobs:
+  detect-changes:
+    name: "Detect Infrastructure Changes"
+    runs-on: ubuntu-latest
+    outputs:
+      terraform-changed: ${{ steps.changes.outputs.terraform }}
+      bicep-changed: ${{ steps.changes.outputs.bicep }}
+      terraform-files-exist: ${{ steps.files.outputs.terraform-exist }}
+      bicep-files-exist: ${{ steps.files.outputs.bicep-exist }}
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Detect Changes
+        id: changes
+        run: |
+          # Check if any Terraform files have changed
+          if git diff --name-only origin/main...HEAD | \
+            grep -E '\.(tf|tfvars|hcl)$' > /dev/null; then
+            echo "terraform=true" >> $GITHUB_OUTPUT
+            echo "Terraform files detected in changes"
+          else
+            echo "terraform=false" >> $GITHUB_OUTPUT
+            echo "No Terraform files detected in changes"
+          fi
+
+          # Check if any Bicep files have changed
+          if git diff --name-only origin/main...HEAD | \
+            grep -E '\.(bicep|json)$' > /dev/null; then
+            echo "bicep=true" >> $GITHUB_OUTPUT
+            echo "Bicep files detected in changes"
+          else
+            echo "bicep=false" >> $GITHUB_OUTPUT
+            echo "No Bicep files detected in changes"
+          fi
+
+      - name: Check if required files exist
+        id: files
+        run: |
+          # Check if Terraform files exist
+          if [ -d "./iac" ] && \
+             find "./iac" -name "*.tf" | read; then
+            echo "terraform-exist=true" >> $GITHUB_OUTPUT
+            echo "Terraform files found in ./iac"
+          else
+            echo "terraform-exist=false" >> $GITHUB_OUTPUT
+            echo "No Terraform files found in ./iac"
+          fi
+
+          # Check if Bicep files exist
+          if [ -f "./infra/main.bicep" ]; then
+            echo "bicep-exist=true" >> $GITHUB_OUTPUT
+            echo "Bicep file found at ./infra/main.bicep"
+          else
+            echo "bicep-exist=false" >> $GITHUB_OUTPUT
+            echo "No Bicep file found at ./infra/main.bicep"
+          fi
+
+  terraform-validation:
+    name: "Terraform Validation & Plan"
+    needs: detect-changes
+    if: |
+      needs.detect-changes.outputs.terraform-changed == 'true' &&
+      needs.detect-changes.outputs.terraform-files-exist == 'true'
+    uses: ./.github/workflows/terraform-plan-template.yml
+    with:
+      runner_name: 'ubuntu-latest'
+      target_environment: 'dev_plan'
+      terraform_root_path: './iac'
+      tfvars_file: './environments/dev.terraform.tfvars'
+      tfstate_file: 'dev.tfstate'
+      requireStorageAccountFirewallAction: false
+      destroyResources: false
+      bypassChecks: false
+      uploadArtifact: false
+    secrets: inherit
+
+  bicep-validation:
+    name: "Bicep Validation & Plan"
+    needs: detect-changes
+    if: |
+      needs.detect-changes.outputs.bicep-changed == 'true' &&
+      needs.detect-changes.outputs.bicep-files-exist == 'true'
+    uses: ./.github/workflows/bicep-plan-template.yml
+    with:
+      deployment_scope: 'resourceGroup'
+      deployment_stack_name: 'pr-validation-stack'
+      bicep_file_path: './infra/main.bicep'
+      parameters_file_path: './infra/parameters/dev.parameters.json'
+      resource_group_name: 'rg-dev'
+      location: 'australiaeast'
+      bypass_checks: false
+      github_token: ${{ secrets.GITHUB_TOKEN }}
+      target_environment: 'dev_plan'
+    secrets: inherit
