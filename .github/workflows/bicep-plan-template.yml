@@ -5,7 +5,7 @@ on:
   workflow_call:
     inputs:
       deployment_scope:
-        description: 'Scope of the deployment: resourceGroup or subscription'
+        description: 'Scope of the deployment: resourceGroup, subscription, or managementGroup'
         required: false
         type: string
         default: 'resourceGroup'
@@ -26,10 +26,25 @@ on:
         required: false
         type: string
         default: ''
+      management_group_id:
+        description: 'Management Group ID (required if scope is managementGroup)'
+        required: false
+        type: string
+        default: ''
       location:
         description: 'Azure region for deployment stack metadata and potentially resources'
         required: true
         type: string
+      action_on_unmanage:
+        description: 'What happens to resources no longer managed after stack update/delete'
+        required: false
+        type: string
+        default: 'detachAll'
+      deny_settings_mode:
+        description: 'Operations denied on stack-managed resources'
+        required: false
+        type: string
+        default: 'none'
       bypass_checks:
         description: 'Set to true to bypass linting and security scans'
         required: false
@@ -98,7 +113,10 @@ jobs:
           bicep_file_path: ${{ inputs.bicep_file_path }}
           parameters_file_path: ${{ inputs.parameters_file_path }}
           resource_group_name: ${{ inputs.resource_group_name }}
+          management_group_id: ${{ inputs.management_group_id }}
           location: ${{ inputs.location }}
+          action_on_unmanage: ${{ inputs.action_on_unmanage }}
+          deny_settings_mode: ${{ inputs.deny_settings_mode }}
           # outfile_path: ${{ env.BICEP_ROOT_PATH }}/compiled.arm.json # If needed for scan
 
       - name: Bicep Scan (Checkov)
@@ -118,5 +136,6 @@ jobs:
           bicep_file_path: ${{ inputs.bicep_file_path }}
           parameters_file_path: ${{ inputs.parameters_file_path }}
           resource_group_name: ${{ inputs.resource_group_name }}
+          management_group_id: ${{ inputs.management_group_id }}
           location: ${{ inputs.location }}
           github_token: ${{ inputs.github_token }} # Pass token for commenting
