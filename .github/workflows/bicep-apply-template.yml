@@ -16,9 +16,10 @@ on:
       parameters_file_path:
         description: 'Path to bicep parameters file. Path is relative to the bicep root path.'
         type: string
-      deployment_name:
-        description: 'Name for the deployment'
+      deployment_stack_name:
+        description: 'Name for the deployment stack (auto-generated if not provided)'
         type: string
+        default: ''
       deployment_scope:
         description: 'Scope of deployment: resourceGroup, subscription, or managementGroup'
         type: string
@@ -34,6 +35,14 @@ on:
       location:
         description: 'Azure region for deployment'
         type: string
+      action_on_unmanage:
+        description: 'What happens to resources no longer managed by the stack'
+        type: string
+        default: 'detachAll'
+      deny_settings_mode:
+        description: 'Operations denied on stack-managed resources'
+        type: string
+        default: 'none'
       azure_subscription_id:
         description: 'Deployment Subscription ID. Only required if creating a subscription as part of the deployment. Otherwise use Env vars'
         type: string
@@ -54,7 +63,6 @@ jobs:
         ARM_USE_AZUREAD: true
         ARM_USE_OIDC: true
         BICEP_ROOT_PATH: ${{ inputs.bicep_root_path }}
-        DEPLOYMENT_NAME: ${{ inputs.deployment_name || 'bicep-deployment' }}
 
     steps:
       - name: Checkout Code
@@ -68,50 +76,39 @@ jobs:
           subscription-id: ${{ env.ARM_SUBSCRIPTION_ID }}
           enable-AzPSSession: false
 
-      - name: Bicep Deploy
-        id: deploy
+      - name: Generate Stack Name
+        id: stack-name
         shell: bash
-        working-directory: ${{ env.BICEP_ROOT_PATH }}
         run: |
-          echo "Deploying Bicep template..."
-          
-          # Deploy based on scope
-          case "${{ inputs.deployment_scope }}" in
-            resourceGroup)
-              if [[ -z "${{ inputs.resource_group_name }}" ]]; then
-                echo "Error: resource_group_name is required for resourceGroup scope"
-                exit 1
-              fi
-              az deployment group create \
-                --resource-group "${{ inputs.resource_group_name }}" \
-                --name "${{ env.DEPLOYMENT_NAME }}" \
-                --template-file main.bicep \
-                $([[ -n "${{ inputs.parameters_file_path }}" ]] && echo "--parameters ${{ inputs.parameters_file_path }}" || echo "")
-              ;;
-            subscription)
-              az deployment sub create \
-                --location "${{ inputs.location }}" \
-                --name "${{ env.DEPLOYMENT_NAME }}" \
-                --template-file main.bicep \
-                $([[ -n "${{ inputs.parameters_file_path }}" ]] && echo "--parameters ${{ inputs.parameters_file_path }}" || echo "")
-              ;;
-            managementGroup)
-              if [[ -z "${{ inputs.management_group_id }}" ]]; then
-                echo "Error: management_group_id is required for managementGroup scope"
-                exit 1
-              fi
-              az deployment mg create \
-                --management-group-id "${{ inputs.management_group_id }}" \
-                --location "${{ inputs.location }}" \
-                --name "${{ env.DEPLOYMENT_NAME }}" \
-                --template-file main.bicep \
-                $([[ -n "${{ inputs.parameters_file_path }}" ]] && echo "--parameters ${{ inputs.parameters_file_path }}" || echo "")
-              ;;
-            *)
-              echo "Error: Unsupported deployment scope: ${{ inputs.deployment_scope }}"
-              echo "Supported scopes: resourceGroup, subscription, managementGroup"
-              exit 1
-              ;;
-          esac
-          
-          echo "Bicep deployment completed successfully"
+          if [[ -n "${{ inputs.deployment_stack_name }}" ]]; then
+            echo "stack_name=${{ inputs.deployment_stack_name }}" >> $GITHUB_OUTPUT
+          else
+            # Try to infer from repository name
+            repo_name="${{ github.repository }}"
+            repo_name="${repo_name##*/}"  # Remove owner prefix
+            repo_name="${repo_name,,}"    # Convert to lowercase
+            repo_name="${repo_name//_/-}" # Replace underscores with hyphens
+            
+            if [[ -n "$repo_name" && "$repo_name" != "" ]]; then
+              stack_name="${repo_name}-stack"
+            else
+              # Fallback to date/time
+              stack_name="stack-$(date +%Y%m%d-%H%M%S)"
+            fi
+            
+            echo "Generated stack name: $stack_name"
+            echo "stack_name=$stack_name" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Bicep Deploy
+        uses: ./.github/actions/bicep-deploy
+        with:
+          deployment_scope: ${{ inputs.deployment_scope }}
+          deployment_stack_name: ${{ steps.stack-name.outputs.stack_name }}
+          bicep_file_path: ${{ env.BICEP_ROOT_PATH }}/main.bicep
+          parameters_file_path: ${{ env.BICEP_ROOT_PATH }}/${{ inputs.parameters_file_path }}
+          resource_group_name: ${{ inputs.resource_group_name }}
+          management_group_id: ${{ inputs.management_group_id }}
+          location: ${{ inputs.location }}
+          action_on_unmanage: ${{ inputs.action_on_unmanage }}
+          deny_settings_mode: ${{ inputs.deny_settings_mode }}

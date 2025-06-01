@@ -22,9 +22,10 @@ on:
       parameters_file_path:
         description: 'Path to bicep parameters file. Path is relative to the bicep root path.'
         type: string
-      deployment_name:
-        description: 'Name for the deployment'
+      deployment_stack_name:
+        description: 'Name for the deployment stack (auto-generated if not provided)'
         type: string
+        default: ''
       deployment_scope:
         description: 'Scope of deployment: resourceGroup, subscription, or managementGroup'
         type: string
@@ -40,6 +41,14 @@ on:
       location:
         description: 'Azure region for deployment'
         type: string
+      action_on_unmanage:
+        description: 'What happens to resources no longer managed by the stack'
+        type: string
+        default: 'detachAll'
+      deny_settings_mode:
+        description: 'Operations denied on stack-managed resources'
+        type: string
+        default: 'none'
       bypass_checks:
         type: boolean
         default: false
@@ -62,11 +71,13 @@ jobs:
       target_environment: ${{ inputs.plan_target_environment }}
       bicep_root_path: ${{ inputs.bicep_root_path }}
       parameters_file_path: ${{ inputs.parameters_file_path }}
-      deployment_name: ${{ inputs.deployment_name }}
+      deployment_stack_name: ${{ inputs.deployment_stack_name }}
       deployment_scope: ${{ inputs.deployment_scope }}
       resource_group_name: ${{ inputs.resource_group_name }}
       management_group_id: ${{ inputs.management_group_id }}
       location: ${{ inputs.location }}
+      action_on_unmanage: ${{ inputs.action_on_unmanage }}
+      deny_settings_mode: ${{ inputs.deny_settings_mode }}
       bypass_checks: ${{ inputs.bypass_checks }}
       azure_subscription_id: ${{ inputs.azure_subscription_id }}
       upload_artifact: ${{ inputs.bicep_action == 'deploy' }}
@@ -82,10 +93,12 @@ jobs:
       target_environment: ${{ inputs.apply_target_environment }}
       bicep_root_path: ${{ inputs.bicep_root_path }}
       parameters_file_path: ${{ inputs.parameters_file_path }}
-      deployment_name: ${{ inputs.deployment_name }}
+      deployment_stack_name: ${{ inputs.deployment_stack_name }}
       deployment_scope: ${{ inputs.deployment_scope }}
       resource_group_name: ${{ inputs.resource_group_name }}
       management_group_id: ${{ inputs.management_group_id }}
       location: ${{ inputs.location }}
+      action_on_unmanage: ${{ inputs.action_on_unmanage }}
+      deny_settings_mode: ${{ inputs.deny_settings_mode }}
       azure_subscription_id: ${{ inputs.azure_subscription_id }}
     secrets: inherit

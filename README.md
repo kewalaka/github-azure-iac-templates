@@ -4,7 +4,7 @@ This repository is a collection of GitHub Actions useful for deploying Terraform
 
 For Terraform, Azure Blob Storage is used for state and plan artifacts.
 
-For Bicep, standard Azure deployments are used across resource group, subscription, and management group scopes.
+For Bicep, Azure deployment stacks are used across resource group, subscription, and management group scopes.
 
 It is designed to be used with 'multi-environment' solutions (i.e. those that need to deploy similar code to dev, test, prod, etc), with support for commonly required checks such as linting and code security static analysis.
 
@@ -77,12 +77,12 @@ jobs:
 
 ```
 
-### Example Usage - Bicep Deployments
+### Example Usage - Bicep Deployment Stacks
 
 Create a workflow file (e.g., `.github/workflows/deploy-bicep.yml`) in your repository with the following content. This example uses `workflow_dispatch` for manual triggering:
 
 ```yaml
-name: Bicep Deployment
+name: Bicep Deployment Stacks
 
 on:
   workflow_dispatch:
@@ -129,12 +129,14 @@ jobs:
       plan_target_environment: "${{ inputs.target_environment }}_plan"
       apply_target_environment: "${{ inputs.target_environment }}_apply"
       deployment_scope: ${{ inputs.deployment_scope }}
-      deployment_name: "${{ inputs.target_environment }}-deployment"
+      deployment_stack_name: "${{ inputs.target_environment }}-stack"  # Optional: auto-generated if not provided
       bicep_root_path: "./iac"
       parameters_file_path: "parameters/${{ inputs.target_environment }}.parameters.json"
       resource_group_name: "${{ inputs.deployment_scope == 'resourceGroup' && format('rg-{0}', inputs.target_environment) || '' }}"
       management_group_id: "${{ inputs.deployment_scope == 'managementGroup' && 'your-mg-id' || '' }}"
       location: "eastus"
+      action_on_unmanage: "detachAll"  # Options: detachAll, deleteAll
+      deny_settings_mode: "none"       # Options: none, denyDelete, denyWriteAndDelete
     secrets: inherit
 
 ```
@@ -163,7 +165,15 @@ You can add these optional **Variables** to your environments (`_plan` and `_app
 
 ### Bicep Variables
 
-For Bicep deployments, no additional variables are required beyond the standard Azure credentials.
+For Bicep deployment stacks, you can customize stack behavior using the following parameters:
+
+| Parameter Name | Description | Default | Options |
+| :------------ | :---------- | :------ | :------ |
+| `deployment_stack_name` | Name for the deployment stack | Auto-generated from repository name | Any valid Azure resource name |
+| `action_on_unmanage` | What happens to resources no longer managed by the stack | `detachAll` | `detachAll`, `deleteAll` |
+| `deny_settings_mode` | Operations denied on stack-managed resources | `none` | `none`, `denyDelete`, `denyWriteAndDelete` |
+
+**Note:** Stack names are automatically generated based on the calling repository name if not explicitly provided. The what-if functionality uses standard Azure deployment commands since stacks don't support what-if operations directly.
 
 ### Common Variables
 

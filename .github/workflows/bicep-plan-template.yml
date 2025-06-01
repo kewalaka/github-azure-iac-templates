@@ -16,9 +16,10 @@ on:
       parameters_file_path:
         description: 'Path to bicep parameters file. Path is relative to the bicep root path.'
         type: string
-      deployment_name:
-        description: 'Name for the deployment'
+      deployment_stack_name:
+        description: 'Name for the deployment stack (auto-generated if not provided)'
         type: string
+        default: ''
       deployment_scope:
         description: 'Scope of deployment: resourceGroup, subscription, or managementGroup'
         type: string
@@ -34,6 +35,14 @@ on:
       location:
         description: 'Azure region for deployment'
         type: string
+      action_on_unmanage:
+        description: 'What happens to resources no longer managed by the stack'
+        type: string
+        default: 'detachAll'
+      deny_settings_mode:
+        description: 'Operations denied on stack-managed resources'
+        type: string
+        default: 'none'
       azure_subscription_id:
         description: 'Deployment Subscription ID. Only required if creating a subscription as part of the deployment. Otherwise use Env vars'
         type: string
@@ -60,11 +69,34 @@ jobs:
         ARM_USE_AZUREAD: true
         ARM_USE_OIDC: true
         BICEP_ROOT_PATH: ${{ inputs.bicep_root_path }}
-        DEPLOYMENT_NAME: ${{ inputs.deployment_name || 'bicep-deployment' }}
 
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
+
+      - name: Generate Stack Name
+        id: stack-name
+        shell: bash
+        run: |
+          if [[ -n "${{ inputs.deployment_stack_name }}" ]]; then
+            echo "stack_name=${{ inputs.deployment_stack_name }}" >> $GITHUB_OUTPUT
+          else
+            # Try to infer from repository name
+            repo_name="${{ github.repository }}"
+            repo_name="${repo_name##*/}"  # Remove owner prefix
+            repo_name="${repo_name,,}"    # Convert to lowercase
+            repo_name="${repo_name//_/-}" # Replace underscores with hyphens
+            
+            if [[ -n "$repo_name" && "$repo_name" != "" ]]; then
+              stack_name="${repo_name}-stack"
+            else
+              # Fallback to date/time
+              stack_name="stack-$(date +%Y%m%d-%H%M%S)"
+            fi
+            
+            echo "Generated stack name: $stack_name"
+            echo "stack_name=$stack_name" >> $GITHUB_OUTPUT
+          fi
 
       - name: Login to Azure
         uses: azure/login@v2
@@ -135,12 +167,14 @@ jobs:
         working-directory: ${{ env.BICEP_ROOT_PATH }}
         run: |
           echo "Running Bicep What-If analysis..."
+          echo "Note: Using deployment what-if since stacks don't support what-if directly"
           
-          # Run what-if based on scope
+          # Run what-if based on scope using deployment commands (not stacks)
           case "${{ inputs.deployment_scope }}" in
             resourceGroup)
               WHATIF_OUTPUT=$(az deployment group what-if \
                 --resource-group "${{ inputs.resource_group_name }}" \
+                --name "${{ steps.stack-name.outputs.stack_name }}-whatif" \
                 --template-file compiled.arm.json \
                 $([[ -n "${{ inputs.parameters_file_path }}" ]] && echo "--parameters ${{ inputs.parameters_file_path }}" || echo "") \
                 --result-format FullResourcePayloads)
@@ -148,6 +182,7 @@ jobs:
             subscription)
               WHATIF_OUTPUT=$(az deployment sub what-if \
                 --location "${{ inputs.location }}" \
+                --name "${{ steps.stack-name.outputs.stack_name }}-whatif" \
                 --template-file compiled.arm.json \
                 $([[ -n "${{ inputs.parameters_file_path }}" ]] && echo "--parameters ${{ inputs.parameters_file_path }}" || echo "") \
                 --result-format FullResourcePayloads)
@@ -156,6 +191,7 @@ jobs:
               WHATIF_OUTPUT=$(az deployment mg what-if \
                 --management-group-id "${{ inputs.management_group_id }}" \
                 --location "${{ inputs.location }}" \
+                --name "${{ steps.stack-name.outputs.stack_name }}-whatif" \
                 --template-file compiled.arm.json \
                 $([[ -n "${{ inputs.parameters_file_path }}" ]] && echo "--parameters ${{ inputs.parameters_file_path }}" || echo "") \
                 --result-format FullResourcePayloads)
