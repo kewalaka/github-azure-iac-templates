@@ -84,6 +84,30 @@ To prevent accidental deployments, configure protection rules on your `_apply` e
 1. Configure reviewers (users or teams) who must approve deployments to this environment.
 1. Save the protection rules.
 
+## PR Validation Workflow
+
+This repository includes a pre-built PR validation workflow (`pr-validation.yml`) that automatically runs validation checks when pull requests are created or updated. The workflow:
+
+- **Triggers automatically** on pull request events (opened, synchronize, reopened)
+- **Detects changes** to Infrastructure as Code files (Terraform: `.tf`, `.tfvars`, `.hcl`; Bicep: `.bicep`, `.json`)
+- **Runs validation only** for the file types that have changed
+- **Performs comprehensive checks** including:
+  - Terraform: linting (tflint), security scanning (checkov), and planning against dev environment
+  - Bicep: linting, validation, security scanning (checkov), and what-if against dev environment
+- **Uses existing workflows** leveraging the same terraform-plan-template.yml and bicep-plan-template.yml used for deployments
+
+### Using the PR Validation Workflow
+
+To use this workflow in your repository:
+
+1. **Copy the workflow:** Include `.github/workflows/pr-validation.yml` in your repository
+1. **Configure environments:** Ensure you have a `dev_plan` environment configured with the required variables (see Quick Start above)
+1. **Adjust paths if needed:** The workflow assumes standard paths:
+   - Terraform: `./iac` directory with `./environments/dev.terraform.tfvars`
+   - Bicep: `./infra/main.bicep` with `./infra/parameters/dev.parameters.json`
+
+The workflow will automatically run on all PRs targeting the main branch and provide feedback on infrastructure changes before they are merged.
+
 ## Optional Variables
 
 You can add these optional **Variables** to your environments (`_plan` and `_apply`) to customize behavior:
