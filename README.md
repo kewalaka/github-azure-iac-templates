@@ -1,29 +1,25 @@
-# Github Infrastructure as Code CI/CD templates
+# Multi-environment Infrastructure as Code CI/CD templates
 
-This repository is a collection of GitHub Actions useful for deploying Terraform or Bicep to Azure using OIDC authentication.
+This repository is a collection of GitHub Actions useful for deploying Terraform using OIDC authentication.
 
-For Terraform, Azure Blob Storage is used for state and plan artifacts.
+It supports **multi-environment** solutions (i.e. those that need to deploy similar code to dev, test, prod, etc), with optional support for commonly required checks such as linting and code security static analysis enabled by default.
 
-It is designed to be used with 'multi-environment' solutions (i.e. those that need to deploy similar code to dev, test, prod, etc), with support for commonly required checks such as linting and code security static analysis.
+Azure Blob Storage is used for state and plan artifacts, to provide stronger RBAC than is available via GitHub packages.
 
 ## Quick Start
 
-GitHub Environments are used to provide Actions with access to the correct deployment target and identity.
+The recommended way to get started with these templates is to use [Az-Bootstrap](https://github.com/kewalaka/az-bootstrap).
 
-1. **Create Environments:** Navigate to `Settings` -> `Environments`, create two for each target environment:
-    * `<env_name>_plan` (e.g., `dev-iac-plan`)
-    * `<env_name>_apply` (e.g., `dev-iac-apply`)
+Az-Bootstrap needs a template repository, you can optionally use this one: <https://github.com/kewalaka/terraform-azure-starter-template>
 
-1. **Add Required Variables:** Add the following **Variables** to **both** the `-plan` and `-apply` environments you just created:
-    * `ARM_CLIENT_ID`: Client ID for the User Assigned Managed Identity used for deployment.
-    * `ARM_SUBSCRIPTION_ID`: Target Azure Subscription ID for resource deployment.
-    * `ARM_TENANT_ID`: Azure Tenant ID.
+This will create:
 
-1. For Terraform only, create the following (also in both plan and apply environments):
-    * `TF_STATE_RESOURCE_GROUP_NAME`: Resource group name containing the Terraform state storage account.
-    * `TF_STATE_STORAGE_ACCOUNT_NAME`: Storage account name for Terraform state.
+- Azure resources (resource groups, managed identities, storage account for state file)
+- GitHub resources (environments, recommended branch protection & reviewers)
 
-### Example Usage - Terraform
+The template usage includes an example of calling the re-usable workflow, set up for a single `dev` environment.
+
+## Usage
 
 Create a workflow file (e.g., `.github/workflows/deploy.yml`) in your repository with the following content. This example uses `workflow_dispatch` for manual triggering:
 
@@ -60,6 +56,8 @@ run-name: Terraform ${{ inputs.terraform_action }} (${{ inputs.target_environmen
 permissions:
   id-token: write # Required for OIDC authentication
   contents: read  # Required to checkout code
+  pull-requests: write # Terraform Plan summaries can be written to PRs as comments
+  security-events: write # Allow upload of sarif outputs
 
 jobs:
   call-terraform-deploy:
@@ -75,24 +73,48 @@ jobs:
 
 ```
 
+## Manual setup of of GitHub
+
+If you'd prefer to configure GitHub manually, the following are required in the calling workflow:
+
+1. **Create Environments:** Navigate to `Settings` -> `Environments`, create two for each target environment:
+    - `<env_name>-iac-plan` (e.g., `dev-iac-plan`)
+    - `<env_name>-iac-apply` (e.g., `dev-iac-apply`)
+
+1. **Add Required Secrets:** Add the following **secrets** to **both** the `-plan` and `-apply` environments you just created:
+    - `ARM_CLIENT_ID`: Client ID for the User Assigned Managed Identity used for deployment.
+    - `ARM_SUBSCRIPTION_ID`: Target Azure Subscription ID for resource deployment.
+    - `ARM_TENANT_ID`: Azure Tenant ID.
+
+1. For Terraform only, create the following (also in both plan and apply environments):
+    - `TF_STATE_RESOURCE_GROUP_NAME`: Resource group name containing the Terraform state storage account.
+    - `TF_STATE_STORAGE_ACCOUNT_NAME`: Storage account name for Terraform state.
+
 ## Recommendation: Add Protection Rules
 
-To prevent accidental deployments, configure protection rules on your `_apply` environments:
+To prevent accidental deployments, configure protection rules on your `-apply` environments:
 
 1. Go to Repository `Settings` -> `Environments` -> `<env_name>-iac-apply`.
 1. Under **Deployment protection rules**, enable **Required reviewers**.
 1. Configure reviewers (users or teams) who must approve deployments to this environment.
 1. Save the protection rules.
 
+This process is completed by Az-Bootstrap.
+
 ## Optional Variables
 
-You can add these optional **Variables** to your environments (`_plan` and `_apply`) to customize behavior:
+You can add these optional **secrets** to your environments (`-plan` and `-apply`) to customize behavior:
 
-| Variable Name | Description | Default |
-| :------------ | :---------- | :------ |
+| Secret Name | Description | Default |
+| :---------- | :---------- | :------ |
 | `TF_STATE_SUBSCRIPTION_ID`      | Subscription ID for the Terraform state storage, only required if it is not the same as the deployment subscription account.   | `ARM_SUBSCRIPTION_ID` |
 | `TF_STATE_STORAGE_CONTAINER_NAME` | Container name within the state storage account. | `tfstate` |
 | `ARTIFACT_STORAGE_CONTAINER_NAME` | Container name for storing the Terraform plan artifact. | `tfartifact` |
+
+You can pass additional environment variables to Terraform at runtime (via TF_VAR_), using this:
+
+| Variable Name | Description | Default |
+| :------------ | :---------- | :------ |
 | `EXTRA_TF_VARS`           | Comma-separated `key=value` pairs passed as additional `-var` arguments to Terraform (e.g., `containertag=<SHA>,subid=<GUID>`)  This should be used sparingly, only for variables that need to be computed by previous steps. | (none) |
 
 It is possible to specify a list of resource firewalls to unlock during the pipeline run, however we recommend using self-hosted or managed runners instead of this feature:
