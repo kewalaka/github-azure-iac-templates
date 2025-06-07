@@ -1,0 +1,126 @@
+name: Run Terraform Plan
+id: run-terraform-plan
+description: Runs the Terraform Plan
+
+inputs:
+  root_module_folder_relative_path:
+    description: 'Relative path to root of Terraform code (usually ./iac)'
+    required: true
+  tfvars_file:
+    description: 'Comma seperated list of paths to optional tfvars files. Paths are relative to the terraform root path.'
+    required: true
+  destroy_resources:
+    required: true
+    default: 'false'
+  tfvar-list:
+    description: List of extra variables in the form of "key=value,key=value"
+    default: ''
+  github_token:
+    description: 'GitHub token for posting comments to PRs'
+    required: false
+    default: ''
+
+runs:
+  using: composite
+  steps:
+    - name: Set additional TF_VARs
+      shell: pwsh
+      run: |
+        $extraVars=${{ inputs.tfvar-list }}
+
+        if ($extraVars.Length -eq 0)
+        {
+          Write-Host "No additional TFVARs supplied"
+          exit 0
+        }
+
+        $tfvars = $extraVars -split ','
+
+        foreach ($tfvar in $tfvars)
+        {
+          try {
+            if ($tfvar.trim() -ne "")
+            {
+              $tfvarName = "TF_VAR_" + ($tfvar -split '=')[0]
+              $tfvarValue = ($tfvar -split '=')[1]
+              Write-Host "Setting environment variable '$tfvarName' to '$tfvarValue'"
+              echo "$tfvarName=$tfvarValue" >> $env:GITHUB_ENV
+            }
+          }
+          catch {
+            Write-Error $_.Exception.Message
+            Write-Host "`nThe terraform-additional-tfvars parameter should be a comma-separated string of key=value pairs, for example: 'myVariable=theValue'"
+            Write-Host "Variable names will be automatically prefixed with TF_VAR_"
+            exit 1
+          }
+        }
+
+    - name: Terraform Plan
+      shell: bash
+      working-directory: ${{ inputs.root_module_folder_relative_path }}
+      run: |
+        echo "Current working directory: $(pwd)"
+
+        echo "Destroy flag set: ${{ inputs.destroy_resources }}"
+        echo " "
+        echo "Running terraform plan${{ inputs.destroy_resources == 'true' && ' -destroy' || '' }}"
+        echo " "
+
+        terraform plan \
+        $([ -n "${{ inputs.tfvars_file }}" ] && echo "-var-file ${{ inputs.tfvars_file }}" | sed 's/,/ -var-file /') \
+        -out=tfplan -input=false \
+        ${{ inputs.destroy_resources == 'true' && '-destroy' || '' }}
+
+    - name: Show the Plan for Review
+      id: tf-plan-show-action
+      shell: bash
+      working-directory: ${{ inputs.root_module_folder_relative_path }}
+      run: |
+        INSTALL_TEMP=$RUNNER_TEMP/$(uuidgen)
+        mkdir $INSTALL_TEMP
+
+        echo "Current temp install directory: $INSTALL_TEMP"
+
+        curl -L "$(curl -s https://api.github.com/repos/Azure/tfplandoc/releases/latest | grep -o -E "https://.+?_linux_amd64.zip")" > $INSTALL_TEMP/tfplandoc.zip
+        unzip $INSTALL_TEMP/tfplandoc.zip -d $INSTALL_TEMP
+        mv $INSTALL_TEMP/tfplandoc_v* $INSTALL_TEMP/tfplandoc
+        sudo install $INSTALL_TEMP/tfplandoc /usr/local/bin
+        PLAN_SUMMARY=$(terraform show -json tfplan | tfplandoc generate -)
+
+        # Output summary to Actions log
+        {
+        echo "--- Plan Summary ---"
+        echo "$PLAN_SUMMARY"
+        echo "--- End Plan Summary ---"
+        } | tee -a $GITHUB_STEP_SUMMARY
+
+        # Set the multiline output for this step
+        echo "summary<<EOF" >> $GITHUB_OUTPUT
+        echo "$PLAN_SUMMARY" >> $GITHUB_OUTPUT
+        echo "EOF" >> $GITHUB_OUTPUT
+        echo "Plan summary set as step output."
+
+    - name: Post Plan Summary to PR
+      if: inputs.github_token != '' && github.event_name == 'pull_request'
+      uses: actions/github-script@v7
+      with:
+        github-token: ${{ inputs.github_token }}
+        script: |
+          // Access the output from the previous step directly
+          const planSummary = `${{ steps.tf-plan-show-action.outputs.summary }}`;
+          const runUrl = `${process.env.GITHUB_SERVER_URL}/${process.env.GITHUB_REPOSITORY}/actions/runs/${process.env.GITHUB_RUN_ID}`;
+
+          if (!planSummary || planSummary.trim() === '') {
+            console.log('Plan summary is empty, skipping comment.');
+            return;
+          }
+
+          const body = `## Terraform Plan Summary\n\n${planSummary}\n\n---\n*View full plan output in the [GitHub Actions run](${runUrl}).*`;
+
+          await github.rest.issues.createComment({
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            issue_number: context.issue.number,
+            body: body
+          });
+          console.log('Posted plan summary comment to PR #${context.issue.number}');

@@ -13,12 +13,12 @@ This composite action checks for the existence of the required Azure Storage Acc
 
 ## Inputs
 
-| Name                    | Required | Description                                  | Default      |
-| :---------------------- | :------- | :------------------------------------------- | :----------- |
-| `resource_group_name`   | `true`   | Name of the **existing** Resource Group for the backend. | |
-| `storage_account_name`  | `true`   | Name of the Storage Account for the backend (max 24 chars, lowercase alphanumeric). |  |
-| `state_container_name`  | `true`   | Name of the container for Terraform state.   | `tfstate` |
-| `artifact_container_name` | `true` | Name of the container for Terraform plan artifacts. | `tfartifact` |
+| Name                      | Required | Description                                  | Default      |
+| :------------------------ | :------- | :------------------------------------------- | :----------- |
+| `resource_group_name`     | `true`   | Name of the **existing** Resource Group for the backend.  | |
+| `storage_account_name`    | `true`   | Name of the Storage Account for the backend (max 24 chars, lowercase alphanumeric). | |
+| `state_container_name`    | `true`   | Name of the container for Terraform state.   | `tfstate`    |
+| `artifact_container_name` | `true`   | Name of the container for Terraform plan artifacts. | `tfartifact` |
 
 ## Environment Variables Used
 
@@ -37,13 +37,13 @@ jobs:
   plan:
     # ... other job settings ...
     env:
-      ARM_CLIENT_ID: ${{ vars.AZURE_CLIENT_ID }}
-      ARM_TENANT_ID: ${{ vars.AZURE_TENANT_ID }}
-      TF_STATE_SUBSCRIPTION_ID: ${{ vars.TF_STATE_SUBSCRIPTION_ID || vars.AZURE_SUBSCRIPTION_ID }}
-      TF_STATE_RESOURCE_GROUP: ${{ vars.TF_STATE_RESOURCE_GROUP }}
-      TF_STATE_BLOB_ACCOUNT: ${{ vars.TF_STATE_BLOB_ACCOUNT }}
-      TF_STATE_BLOB_CONTAINER: ${{ vars.TF_STATE_BLOB_CONTAINER || 'tfstate' }}
-      ARTIFACT_BLOB_CONTAINER: ${{ vars.ARTIFACT_BLOB_CONTAINER || 'tfartifact' }}
+      ARM_CLIENT_ID: ${{ secrets.ARM_CLIENT_ID }}
+      ARM_TENANT_ID: ${{ secrets.ARM_TENANT_ID }}
+      TF_STATE_SUBSCRIPTION_ID: ${{ secrets.TF_STATE_SUBSCRIPTION_ID || secrets.ARM_SUBSCRIPTION_ID }}
+      TF_STATE_RESOURCE_GROUP_NAME: ${{ secrets.TF_STATE_RESOURCE_GROUP_NAME }}
+      TF_STATE_STORAGE_ACCOUNT_NAME: ${{ secrets.TF_STATE_STORAGE_ACCOUNT_NAME }}
+      TF_STATE_STORAGE_CONTAINER_NAME: ${{ secrets.TF_STATE_STORAGE_CONTAINER_NAME || 'tfstate' }}
+      ARTIFACT_STORAGE_CONTAINER_NAME: ${{ secrets.ARTIFACT_STORAGE_CONTAINER_NAME || 'tfartifact' }}
       # ... other env vars ...
 
     steps:
@@ -52,14 +52,14 @@ jobs:
 
       - name: Check for Terraform Backend Storage and RBAC
         # Use relative path if in the same repo
-        uses: ./.github/actions/terraform-backend
+        uses: kewalaka/github-azure-iac-templates/.github/actions/terraform-backend
         # Or full path if calling from another repo
         # uses: your-org/your-repo/.github/actions/terraform-backend@v1.0
         with:
-          resource_group_name: ${{ env.TF_STATE_RESOURCE_GROUP }}
-          storage_account_name: ${{ env.TF_STATE_BLOB_ACCOUNT }}
-          state_container_name: ${{ env.TF_STATE_BLOB_CONTAINER }}
-          artifact_container_name: ${{ env.ARTIFACT_BLOB_CONTAINER }}
+          resource_group_name: ${{ env.TF_STATE_RESOURCE_GROUP_NAME }}
+          storage_account_name: ${{ env.TF_STATE_STORAGE_ACCOUNT_NAME }}
+          state_container_name: ${{ env.TF_STATE_STORAGE_CONTAINER_NAME }}
+          artifact_container_name: ${{ env.ARTIFACT_STORAGE_CONTAINER_NAME }}
 
       # ... subsequent steps (Terraform Init, Plan, etc.) ...
 ```
