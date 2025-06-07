@@ -75,7 +75,7 @@ jobs:
 
       - name: Unlock Resource Firewalls
         if: ${{ inputs.unlock_resource_firewalls }}
-        uses: kewalaka/github-azure-iac-templates/.github/actions/azure-unlock-firewall@feat/terraform-updates
+        uses: kewalaka/github-azure-iac-templates/.github/actions/azure-unlock-firewall@main
         with:
           OPERATION: "Allow"
           TF_STATE_SUBSCRIPTION_ID: ${{ env.TF_STATE_SUBSCRIPTION_ID  }}
@@ -138,7 +138,7 @@ jobs:
                         
       - name: Lock Resource Firewalls
         if: ${{ always() && inputs.unlock_resource_firewalls }}
-        uses: kewalaka/github-azure-iac-templates/.github/actions/azure-unlock-firewall@feat/terraform-updates
+        uses: kewalaka/github-azure-iac-templates/.github/actions/azure-unlock-firewall@main
         with:
           OPERATION: "Deny"
           TF_STATE_SUBSCRIPTION_ID: ${{ env.TF_STATE_SUBSCRIPTION_ID  }}
