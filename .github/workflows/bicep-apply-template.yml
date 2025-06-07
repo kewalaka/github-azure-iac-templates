@@ -101,14 +101,47 @@ jobs:
           fi
 
       - name: Bicep Deploy
-        uses: ./.github/actions/bicep-deploy
-        with:
-          deployment_scope: ${{ inputs.deployment_scope }}
-          deployment_stack_name: ${{ steps.stack-name.outputs.stack_name }}
-          bicep_file_path: ${{ env.BICEP_ROOT_PATH }}/main.bicep
-          parameters_file_path: ${{ env.BICEP_ROOT_PATH }}/${{ inputs.parameters_file_path }}
-          resource_group_name: ${{ inputs.resource_group_name }}
-          management_group_id: ${{ inputs.management_group_id }}
-          location: ${{ inputs.location }}
-          action_on_unmanage: ${{ inputs.action_on_unmanage }}
-          deny_settings_mode: ${{ inputs.deny_settings_mode }}
+        shell: bash
+        working-directory: ${{ env.BICEP_ROOT_PATH }}
+        run: |
+          echo "Running Bicep Deploy using Azure Deployment Stacks..."
+          
+          # Determine the correct az stack command based on scope
+          case "${{ inputs.deployment_scope }}" in
+            resourceGroup)
+              if [[ -z "${{ inputs.resource_group_name }}" ]]; then
+                echo "Error: resource_group_name is required for resourceGroup scope"
+                exit 1
+              fi
+              cmd="az stack group create"
+              cmd+=" --resource-group ${{ inputs.resource_group_name }}"
+              ;;
+            subscription)
+              cmd="az stack sub create"
+              ;;
+            managementGroup)
+              if [[ -z "${{ inputs.management_group_id }}" ]]; then
+                echo "Error: management_group_id is required for managementGroup scope"
+                exit 1
+              fi
+              cmd="az stack mg create"
+              cmd+=" --management-group-id ${{ inputs.management_group_id }}"
+              ;;
+            *)
+              echo "Error: Unsupported deployment scope: ${{ inputs.deployment_scope }}"
+              echo "Supported scopes: resourceGroup, subscription, managementGroup"
+              exit 1
+              ;;
+          esac
+          
+          # Add common parameters
+          cmd+=" --name ${{ steps.stack-name.outputs.stack_name }}"
+          cmd+=" --template-file main.bicep"
+          cmd+=" --parameters ${{ inputs.parameters_file_path }}"
+          cmd+=" --location ${{ inputs.location }}"
+          cmd+=" --action-on-unmanage ${{ inputs.action_on_unmanage }}"
+          cmd+=" --deny-settings-mode ${{ inputs.deny_settings_mode }}"
+          cmd+=" --yes" # Auto-confirm deployment
+          
+          echo "Executing: $cmd"
+          $cmd
