@@ -50,7 +50,7 @@ runs:
     - name: Install Checkov
       shell: bash
       run: |
-        pip install checkov
+        pip install --quiet checkov
 
     - name: Terraform Scan with Checkov
       shell: bash
