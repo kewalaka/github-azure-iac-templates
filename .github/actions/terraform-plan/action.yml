@@ -3,65 +3,96 @@ id: run-terraform-plan
 description: Runs the Terraform Plan
 
 inputs:
-  terraform_root_path:
+  root_module_folder_relative_path:
     description: 'Relative path to root of Terraform code (usually ./iac)'
     required: true
   tfvars_file:
     description: 'Comma seperated list of paths to optional tfvars files. Paths are relative to the terraform root path.'
     required: true
-  destroyResources:
+  destroy_resources:
     required: true
     default: 'false'
+  tfvar-list:
+    description: List of extra variables in the form of "key=value,key=value"
+    default: ''
+  github_token:
+    description: 'GitHub token for posting comments to PRs'
+    required: false
+    default: ''
 
 runs:
   using: composite
   steps:
-    - name: Terraform Validate
-      id: tf-validate-action
-      shell: bash
-      working-directory: ${{ inputs.terraform_root_path }}
+    - name: Set additional TF_VARs
+      shell: pwsh
       run: |
-        terraform validate
+        $extraVars=${{ inputs.tfvar-list }}
 
-    - name: Terraform Format Check
-      id: tf-format-action
-      shell: bash
-      working-directory: ${{ inputs.terraform_root_path }}
-      run: |
-        terraform fmt -recursive -check || { echo $'\nFormatting needs to be fixed! Please run "terraform fmt" over your code for the above files:\nhttps://www.terraform.io/docs/commands/fmt.html' ; exit 1; }
+        if ($extraVars.Length -eq 0)
+        {
+          Write-Host "No additional TFVARs supplied"
+          exit 0
+        }
+
+        $tfvars = $extraVars -split ','
+
+        foreach ($tfvar in $tfvars)
+        {
+          try {
+            if ($tfvar.trim() -ne "")
+            {
+              $tfvarName = "TF_VAR_" + ($tfvar -split '=')[0]
+              $tfvarValue = ($tfvar -split '=')[1]
+              Write-Host "Setting environment variable '$tfvarName' to '$tfvarValue'"
+              echo "$tfvarName=$tfvarValue" >> $env:GITHUB_ENV
+            }
+          }
+          catch {
+            Write-Error $_.Exception.Message
+            Write-Host "`nThe terraform-additional-tfvars parameter should be a comma-separated string of key=value pairs, for example: 'myVariable=theValue'"
+            Write-Host "Variable names will be automatically prefixed with TF_VAR_"
+            exit 1
+          }
+        }
 
     - name: Terraform Plan
-      id: tf-plan-action
       shell: bash
-      working-directory: ${{ inputs.terraform_root_path }}
+      working-directory: ${{ inputs.root_module_folder_relative_path }}
       run: |
         echo "Current working directory: $(pwd)"
 
-        echo "Destroy flag set: ${{ inputs.destroyResources }}"
+        echo "Destroy flag set: ${{ inputs.destroy_resources }}"
         echo " "
-        echo "Running terraform plan${{ inputs.destroyResources == 'true' && ' -destroy' || '' }}"
+        echo "Running terraform plan${{ inputs.destroy_resources == 'true' && ' -destroy' || '' }}"
         echo " "
 
         terraform plan \
         $([ -n "${{ inputs.tfvars_file }}" ] && echo "-var-file ${{ inputs.tfvars_file }}" | sed 's/,/ -var-file /') \
         -out=tfplan -input=false \
-        ${{ inputs.destroyResources == 'true' && '-destroy' || '' }}
+        ${{ inputs.destroy_resources == 'true' && '-destroy' || '' }}
 
     - name: Show the Plan for Review
       id: tf-plan-show-action
       shell: bash
-      working-directory: ${{ inputs.terraform_root_path }}
+      working-directory: ${{ inputs.root_module_folder_relative_path }}
       run: |
-        curl -L "$(curl -s https://api.github.com/repos/Azure/tfplandoc/releases/latest | grep -o -E "https://.+?_linux_amd64.zip")" > tfplandoc.zip
-        unzip tfplandoc.zip
-        mv tfplandoc_v* tfplandoc
-        sudo install tfplandoc /usr/local/bin
+        INSTALL_TEMP=$RUNNER_TEMP/$(uuidgen)
+        mkdir $INSTALL_TEMP
+
+        echo "Current temp install directory: $INSTALL_TEMP"
+
+        curl -L "$(curl -s https://api.github.com/repos/Azure/tfplandoc/releases/latest | grep -o -E "https://.+?_linux_amd64.zip")" > $INSTALL_TEMP/tfplandoc.zip
+        unzip $INSTALL_TEMP/tfplandoc.zip -d $INSTALL_TEMP
+        mv $INSTALL_TEMP/tfplandoc_v* $INSTALL_TEMP/tfplandoc
+        sudo install $INSTALL_TEMP/tfplandoc /usr/local/bin
         PLAN_SUMMARY=$(terraform show -json tfplan | tfplandoc generate -)
 
         # Output summary to Actions log
+        {
         echo "--- Plan Summary ---"
         echo "$PLAN_SUMMARY"
         echo "--- End Plan Summary ---"
+        } | tee -a $GITHUB_STEP_SUMMARY
 
         # Set the multiline output for this step
         echo "summary<<EOF" >> $GITHUB_OUTPUT
@@ -92,4 +123,4 @@ runs:
             issue_number: context.issue.number,
             body: body
           });
-          console.log('Posted plan summary comment to PR #${context.issue.number}');        
+          console.log('Posted plan summary comment to PR #${context.issue.number}');

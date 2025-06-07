@@ -1,31 +1,27 @@
-# Github Infrastructure as Code CI/CD templates
+# Multi-environment Infrastructure as Code CI/CD templates
 
-This repository is a collection of GitHub Actions useful for deploying Terraform or Bicep to Azure using OIDC authentication.
+This repository is a collection of GitHub Actions useful for deploying Terraform using OIDC authentication.
 
-For Terraform, Azure Blob Storage is used for state and plan artifacts.
+It supports **multi-environment** solutions (i.e. those that need to deploy similar code to dev, test, prod, etc), with optional support for commonly required checks such as linting and code security static analysis enabled by default.
 
 For Bicep, Azure deployment stacks are used across resource group, subscription, and management group scopes.
 
-It is designed to be used with 'multi-environment' solutions (i.e. those that need to deploy similar code to dev, test, prod, etc), with support for commonly required checks such as linting and code security static analysis.
+For Terraform, Azure Blob Storage is used for state and plan artifacts, to provide stronger RBAC than is available via GitHub packages.
 
 ## Quick Start
 
-GitHub Environments are used to provide Actions with access to the correct deployment target and identity.
+The recommended way to get started with these templates is to use [Az-Bootstrap](https://github.com/kewalaka/az-bootstrap).
 
-1. **Create Environments:** Navigate to `Settings` -> `Environments`, create two for each target environment:
-    * `<env_name>_plan` (e.g., `dev_plan`)
-    * `<env_name>_apply` (e.g., `dev_apply`)
+Az-Bootstrap needs a template repository, you can optionally use this one: <https://github.com/kewalaka/terraform-azure-starter-template>
 
-1. **Add Required Variables:** Add the following **Variables** to **both** the `_plan` and `_apply` environments you just created:
-    * `AZURE_CLIENT_ID`: Client ID for the User Assigned Managed Identity used for deployment.
-    * `AZURE_SUBSCRIPTION_ID`: Target Azure Subscription ID for resource deployment.
-    * `AZURE_TENANT_ID`: Azure Tenant ID.
+This will create:
 
-1. For Terraform only, create:
-    * `TF_STATE_RESOURCE_GROUP`: Resource group name containing the Terraform state storage account.
-    * `TF_STATE_BLOB_ACCOUNT`: Storage account name for Terraform state.
+- Azure resources (resource groups, managed identities, storage account for state file)
+- GitHub resources (environments, recommended branch protection & reviewers)
 
-### Example Usage - Terraform
+The template usage includes an example of calling the re-usable workflow, set up for a single `dev` environment.
+
+## Usage
 
 Create a workflow file (e.g., `.github/workflows/deploy.yml`) in your repository with the following content. This example uses `workflow_dispatch` for manual triggering:
 
@@ -44,7 +40,7 @@ on:
           - destroy
           - plan
       target_environment:
-        description: 'Select environment'
+        description: 'Select target environment'
         required: true
         type: choice
         default: dev
@@ -52,7 +48,8 @@ on:
           - dev
           - test
           - prod
-      destroyResources:
+      destroy_resources:
+        description: 'Actually destroy resources?'
         type: boolean
         default: false
 
@@ -61,18 +58,19 @@ run-name: Terraform ${{ inputs.terraform_action }} (${{ inputs.target_environmen
 permissions:
   id-token: write # Required for OIDC authentication
   contents: read  # Required to checkout code
+  pull-requests: write # Terraform Plan summaries can be written to PRs as comments
+  security-events: write # Allow upload of sarif outputs
 
 jobs:
   call-terraform-deploy:
     name: "Run terraform ${{ inputs.terraform_action }} for ${{ inputs.target_environment }}"
-    uses: kewalaka/github-azure-iac-templates/.github/workflows/terraform-deploy-template.yml@v1.0
+    uses: kewalaka/github-azure-iac-templates/.github/actions/.github/workflows/terraform-deploy-template.yml@v1.0
     with:
       terraform_action: ${{ inputs.terraform_action }}
-      plan_target_environment: "${{ inputs.target_environment }}_plan"
-      apply_target_environment: "${{ inputs.target_environment }}_apply"
+      environment_name_plan: "${{ inputs.target_environment }}_plan"
+      environment_name_apply: "${{ inputs.target_environment }}_apply"
       tfvars_file: "./environments/${{ inputs.target_environment }}.terraform.tfvars"
-      tfstate_file: "${{ inputs.target_environment }}.tfstate"
-      destroyResources: ${{ inputs.destroyResources == true || inputs.terraform_action == 'destroy' }}
+      destroy_resources: ${{ inputs.destroy_resources == true || inputs.terraform_action == 'destroy' }}
     secrets: inherit
 
 ```
@@ -143,24 +141,31 @@ jobs:
 
 ## Recommendation: Add Protection Rules
 
-To prevent accidental deployments, configure protection rules on your `_apply` environments:
+To prevent accidental deployments, configure protection rules on your `-apply` environments:
 
-1. Go to Repository `Settings` -> `Environments` -> `<env_name>_apply`.
+1. Go to Repository `Settings` -> `Environments` -> `<env_name>-iac-apply`.
 1. Under **Deployment protection rules**, enable **Required reviewers**.
 1. Configure reviewers (users or teams) who must approve deployments to this environment.
 1. Save the protection rules.
+
+This process is completed by Az-Bootstrap.
 
 ## Optional Variables
 
 ### Terraform Variables
 
-You can add these optional **Variables** to your environments (`_plan` and `_apply`) to customize Terraform behavior:
+You can add these optional **secrets** to your environments (`_plan` and `_apply`) to customize Terraform behavior:
+
+| Secret Name | Description | Default |
+| :---------- | :---------- | :------ |
+| `TF_STATE_SUBSCRIPTION_ID`      | Subscription ID for the Terraform state storage, only required if it is not the same as the deployment subscription account.   | `ARM_SUBSCRIPTION_ID` |
+| `TF_STATE_STORAGE_CONTAINER_NAME` | Container name within the state storage account. | `tfstate` |
+| `ARTIFACT_STORAGE_CONTAINER_NAME` | Container name for storing the Terraform plan artifact. | `tfartifact` |
+
+You can pass additional environment variables to Terraform at runtime (via TF_VAR_), using this:
 
 | Variable Name | Description | Default |
 | :------------ | :---------- | :------ |
-| `TF_STATE_SUBSCRIPTION_ID`      | Subscription ID for the Terraform state storage, only required if it is not the same as the deployment subscription account.   | `AZURE_SUBSCRIPTION_ID` |
-| `TF_STATE_BLOB_CONTAINER` | Container name within the state storage account. | `tfstate` |
-| `ARTIFACT_BLOB_CONTAINER` | Container name for storing the Terraform plan artifact. | `tfartifact` |
 | `EXTRA_TF_VARS`           | Comma-separated `key=value` pairs passed as additional `-var` arguments to Terraform (e.g., `containertag=<SHA>,subid=<GUID>`)  This should be used sparingly, only for variables that need to be computed by previous steps. | (none) |
 
 ### Bicep Variables

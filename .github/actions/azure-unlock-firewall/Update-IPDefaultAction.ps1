@@ -76,7 +76,7 @@
       inputs:
         ConnectedServiceNameARM: ${{ variables.azureSubscription }}
         scriptType: "filePath"
-        scriptPath: $(System.DefaultWorkingDirectory)/pipelines/resourceunlock/Update-IPDefaultAction.ps1
+        scriptPath: $(System.DefaultWorkingDirectory)/pipelines/resourceunlock/Update-azure-unlock-firewallAction.ps1
         scriptArguments: |
           -operation ${{ variables.operation }} `
           -tfstateSubscriptionID ${{ coalesce( variables.tfstateSubscriptionID, '""' ) }} `

@@ -2,43 +2,54 @@ name: Terraform plan template
 on:
   workflow_call:
     inputs:
-      runner_name:
-        description: 'The name of the runner pool to run on'
-        type: string
-        default: 'ubuntu-latest'
+      # required inputs
       target_environment:
         description: 'The environment run the workflow against'
-        type: string
-      terraform_root_path:
-        description: 'Relative path to root of Terraform code (usually ./iac)'
-        default: './iac'
         type: string
       tfvars_file:
         description: 'Comma seperated list of paths to optional tfvars files. Paths are relative to the terraform root path.'
         type: string
-      tfstate_file:
-        description: 'Terraform state file name'
-        type: string
+
+      # optional inputs
       azure_subscription_id:
-        description: 'Deployment Subscription ID. Only required if creating a subscription as part of the deployment. Otherwise use Env vars'
+        description: 'Deployment Subscription ID. Only required if creating a subscription as part of the deployment. Otherwise uses environment secrets.'
         type: string
-      requireStorageAccountFirewallAction:
+      bypass_static_analysis_checks:
+        description: 'Bypass terraform lint and checkov checks'
+        type: boolean
+        default: false
+      destroy_resources:
+        description: 'Run a terraform destroy instead of apply'
+        type: boolean
+        default: false
+      root_module_folder_relative_path:
+        description: 'Relative path to root of Terraform code (usually ./iac)'
+        default: './iac'
+        type: string
+      runner_name:
+        description: 'The name of the runner pool to run on'
+        type: string
+        default: 'ubuntu-latest'
+      terraform_cli_version:
+        description: 'Terraform CLI Version'
+        default: 'latest'
+        type: string
+      tf_state_storage_container_key:
+        description: 'Backend Azure Storage Account Container key for Terraform state, e.g. terraform.tfstate'
+        default: 'terraform.tfstate'
+        type: string
+      unlock_resource_firewalls:
         description: 'Unlock firewall for tf state storage and any extra unlocks'
         default: false
         type: boolean
-      destroyResources:
-        type: boolean
-        default: false
-      bypassChecks:
-        type: boolean
-        default: false
-      uploadArtifact:
+      upload_artifact:
+        description: 'Upload the terraform plan artifact to blob storage.  This is set to false by the calling workflow if the terraform action is plan.'
         type: boolean
         default: true
 
 jobs:
   plan:
-    name: "Terraform Plan${{ inputs.destroyResources && ' Destroy' || '' }}"
+    name: "Terraform Plan${{ inputs.destroy_resources && ' Destroy' || '' }}"
     runs-on: ${{ inputs.runner_name }}
     environment: ${{ inputs.target_environment }}
     concurrency:
@@ -46,104 +57,136 @@ jobs:
     permissions:
         id-token: write
         contents: read
+        security-events: write
+        pull-requests: write
     env:
         ## azure resource manager vars
-        ARM_CLIENT_ID: "${{ vars.AZURE_CLIENT_ID }}"
-        ARM_SUBSCRIPTION_ID: "${{ inputs.azure_subscription_id || vars.AZURE_SUBSCRIPTION_ID }}"
-        ARM_TENANT_ID: "${{ vars.AZURE_TENANT_ID }}"
+        ARM_CLIENT_ID: "${{ secrets.ARM_CLIENT_ID }}"
+        ARM_SUBSCRIPTION_ID: "${{ inputs.azure_subscription_id || secrets.ARM_SUBSCRIPTION_ID }}"
+        ARM_TENANT_ID: "${{ secrets.ARM_TENANT_ID }}"
         ARM_USE_AZUREAD: true
         ARM_USE_OIDC: true
         ## backend vars
-        TF_STATE_SUBSCRIPTION_ID: ${{ vars.TF_STATE_SUBSCRIPTION_ID != '' && vars.TF_STATE_SUBSCRIPTION_ID || ( vars.AZURE_SUBSCRIPTION_ID != '' && vars.AZURE_SUBSCRIPTION_ID || inputs.azure_subscription_id )}}
-        TF_STATE_RESOURCE_GROUP: ${{ vars.TF_STATE_RESOURCE_GROUP }}
-        TF_STATE_BLOB_ACCOUNT: ${{ vars.TF_STATE_BLOB_ACCOUNT }}
-        TF_STATE_BLOB_CONTAINER: ${{ vars.TF_STATE_BLOB_CONTAINER || 'tfstate' }}
+        TF_STATE_SUBSCRIPTION_ID: ${{ secrets.TF_STATE_SUBSCRIPTION_ID != '' && secrets.TF_STATE_SUBSCRIPTION_ID || ( secrets.ARM_SUBSCRIPTION_ID != '' && secrets.ARM_SUBSCRIPTION_ID || inputs.azure_subscription_id )}}
+        TF_STATE_RESOURCE_GROUP_NAME: ${{ secrets.TF_STATE_RESOURCE_GROUP_NAME }}
+        TF_STATE_STORAGE_ACCOUNT_NAME: ${{ secrets.TF_STATE_STORAGE_ACCOUNT_NAME }}
+        TF_STATE_STORAGE_CONTAINER_NAME: ${{ secrets.TF_STATE_STORAGE_CONTAINER_NAME || 'tfstate' }}
+        TF_STATE_STORAGE_CONTAINER_KEY: ${{ inputs.tf_state_storage_container_key || 'terraform.tfstate' }}
+        # the artifact storage account is used as a more secure way to store the terraform plan artifact
+        ARTIFACT_STORAGE_CONTAINER_NAME:  ${{ secrets.ARTIFACT_STORAGE_CONTAINER_NAME || 'tfartifact' }}
+
+        ## environment differences
         TF_VAR_FILE: ${{ inputs.tfvars_file }}
-        TF_BLOB_FILE: ${{ inputs.tfstate_file ||'terraform.tfstate' }}
+
+        # allows for dynamic unlocking of firewalls.
         EXTRA_FIREWALL_UNLOCKS: ${{ vars.EXTRA_FIREWALL_UNLOCKS }}
+        # provide additional terraform variables via TF_VAR_ environment variables
         EXTRA_TF_VARS: ${{ vars.EXTRA_TF_VARS }}
-        ARTIFACT_BLOB_CONTAINER:  ${{ vars.ARTIFACT_BLOB_CONTAINER || 'tfartifact' }}
+        # https://developer.hashicorp.com/terraform/tutorials/automation/automate-terraform#controlling-terraform-output-in-automation
+        TF_IN_AUTOMATION: true
 
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
 
+      - name: Azure Login
+        uses: azure/login@v2
+        with:
+          client-id: ${{ env.ARM_CLIENT_ID }}
+          tenant-id: ${{ env.ARM_TENANT_ID }}
+          subscription-id: ${{ env.TF_STATE_SUBSCRIPTION_ID }}
+        
       - name: Unlock Resource Firewalls
-        if: ${{ inputs.requireStorageAccountFirewallAction }}
-        uses: ./.github/actions/ipdefault
+        if: ${{ inputs.unlock_resource_firewalls }}
+        uses: kewalaka/github-azure-iac-templates/.github/actions/azure-unlock-firewall@feat/terraform-updates
         with:
           OPERATION: "Allow"
           TF_STATE_SUBSCRIPTION_ID: ${{ env.TF_STATE_SUBSCRIPTION_ID  }}
-          TF_STATE_RESOURCE_GROUP: ${{ env.TF_STATE_RESOURCE_GROUP }}
-          TF_STATE_BLOB_ACCOUNT: ${{ env.TF_STATE_BLOB_ACCOUNT }}
+          TF_STATE_RESOURCE_GROUP_NAME: ${{ env.TF_STATE_RESOURCE_GROUP_NAME }}
+          TF_STATE_STORAGE_ACCOUNT_NAME: ${{ env.TF_STATE_STORAGE_ACCOUNT_NAME }}
           EXTRA_FIREWALL_UNLOCKS: "${{ env.EXTRA_FIREWALL_UNLOCKS }}"
 
       - name: Install Terraform
         uses: hashicorp/setup-terraform@v3
         with:
             terraform_wrapper: false
+            terraform_version: ${{ inputs.terraform_cli_version }}            
 
       - name: Check for Terraform Backend Storage and RBAC
-        uses: ./.github/actions/terraform-backend
+        uses: kewalaka/github-azure-iac-templates/.github/actions/terraform-backend@feat/terraform-updates
         with:
-          resource_group_name: ${{ env.TF_STATE_RESOURCE_GROUP }}
-          storage_account_name: ${{ env.TF_STATE_BLOB_ACCOUNT }}
-          state_container_name: ${{ env.TF_STATE_BLOB_CONTAINER }}
-          artifact_container_name: ${{ env.ARTIFACT_BLOB_CONTAINER }}
-    
-      - name: Set Extra TF_VARS
-        id: set-tf-vars
-        if: ${{ env.EXTRA_TF_VARS != '' }}
-        uses: ./.github/actions/additionaltfvars
-        with:
-          tfvar-list: ${{ env.EXTRA_TF_VARS }}
+          resource_group_name: ${{ env.TF_STATE_RESOURCE_GROUP_NAME }}
+          storage_account_name: ${{ env.TF_STATE_STORAGE_ACCOUNT_NAME }}
+          state_container_name: ${{ env.TF_STATE_STORAGE_CONTAINER_NAME }}
+          artifact_container_name: ${{ env.ARTIFACT_STORAGE_CONTAINER_NAME }}
 
       - name: Terraform Init
-        id: init
-        uses: ./.github/actions/terraforminit
-        with:
-          terraform_root_path: ${{ inputs.terraform_root_path }}
+        shell: bash
+        working-directory: ${{ inputs.root_module_folder_relative_path }}
+        run: |
+          TF_INIT_CMD="terraform init \
+            -backend-config=\"subscription_id=${{ env.TF_STATE_SUBSCRIPTION_ID }}\" \
+            -backend-config=\"resource_group_name=${{ env.TF_STATE_RESOURCE_GROUP_NAME }}\" \
+            -backend-config=\"storage_account_name=${{ env.TF_STATE_STORAGE_ACCOUNT_NAME }}\" \
+            -backend-config=\"container_name=${{ env.TF_STATE_STORAGE_CONTAINER_NAME }}\" \
+            -backend-config=\"key=${{ env.TF_STATE_STORAGE_CONTAINER_KEY }}\""
 
+          echo "About to run: $TF_INIT_CMD"
+          eval $TF_INIT_CMD
+        
       - name: Terraform Lint
-        id: tflint
-        if: ${{ !inputs.bypassChecks }}
-        uses: ./.github/actions/tflint
+        if: ${{ !inputs.bypass_static_analysis_checks }}
+        uses: kewalaka/github-azure-iac-templates/.github/actions/terraform-lint@feat/terraform-updates
         with:
-          terraform_root_path: ${{ inputs.terraform_root_path }}
+          root_module_folder_relative_path: ${{ inputs.root_module_folder_relative_path }}
           tfvars_file: ${{ env.TF_VAR_FILE }}
 
-      - name: "Terraform Plan${{ inputs.destroyResources && ' Destroy' || '' }}"
+      - name: "Terraform Plan${{ inputs.destroy_resources && ' Destroy' || '' }}"
         id: plan
-        uses: ./.github/actions/terraformplan
+        uses: kewalaka/github-azure-iac-templates/.github/actions/terraform-plan@feat/terraform-updates
         with:
-          terraform_root_path: ${{ inputs.terraform_root_path }}
-          destroyResources: ${{ inputs.destroyResources }}
+          root_module_folder_relative_path: ${{ inputs.root_module_folder_relative_path }}
+          destroy_resources: ${{ inputs.destroy_resources }}
           tfvars_file: ${{ env.TF_VAR_FILE }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: "Upload Artifact"
-        id: upload
-        if: ${{ inputs.uploadArtifact }}
-        uses: ./.github/actions/createartifact
-        with:
-          terraform_root_path: ${{ inputs.terraform_root_path }}
-          TF_STATE_SUBSCRIPTION_ID: ${{ env.TF_STATE_SUBSCRIPTION_ID }}
-          TF_STATE_BLOB_ACCOUNT: ${{ env.TF_STATE_BLOB_ACCOUNT }}
-          ARTIFACT_BLOB_CONTAINER: ${{ env.ARTIFACT_BLOB_CONTAINER }}
-
       - name: Terraform Scan
-        id: tfcheckov
-        if: ${{ !inputs.bypassChecks }}
-        uses: ./.github/actions/checkov-terraform
+        if: ${{ !inputs.bypass_static_analysis_checks }}
+        uses: kewalaka/github-azure-iac-templates/.github/actions/checkov-terraform@feat/terraform-updates
         with:
-          terraform_root_path: ${{ inputs.terraform_root_path }}
+          root_module_folder_relative_path: ${{ inputs.root_module_folder_relative_path }}
+
+      - name: Create and Publish Terraform Artifact
+        if: ${{ inputs.upload_artifact }}
+        shell: bash
+        working-directory: ${{ inputs.root_module_folder_relative_path }}
+        run: |
+          set -e
+          INSTALL_TEMP=$RUNNER_TEMP/$(uuidgen)
+          mkdir $INSTALL_TEMP
+          archive_name="${GITHUB_RUN_ID}.tar.gz"
+
+          # Create a tar.gz archive of the current directory, excluding unwanted folders
+          tar --exclude='.git' \
+              --exclude='.terraform' \
+              --exclude='.github' \
+              -czf "$INSTALL_TEMP/$archive_name" .
+
+          # Upload the artifact to Azure Blob Storage
+          az account set --subscription ${{ env.TF_STATE_SUBSCRIPTION_ID }} 
+          az storage blob upload \
+            --auth-mode login \
+            --account-name "${{ env.TF_STATE_STORAGE_ACCOUNT_NAME }}" \
+            --container-name "${{ env.ARTIFACT_STORAGE_CONTAINER_NAME }}" \
+            --file "$INSTALL_TEMP/$archive_name" \
+            --name "$archive_name"
 
       - name: Lock Resource Firewalls
-        if: ${{ always() && inputs.requireStorageAccountFirewallAction }}
-        uses: ./.github/actions/ipdefault
+        if: ${{ always() && inputs.unlock_resource_firewalls }}
+        uses: kewalaka/github-azure-iac-templates/.github/actions/azure-unlock-firewall@feat/terraform-updates
         with:
           OPERATION: "Deny"
           TF_STATE_SUBSCRIPTION_ID: ${{ env.TF_STATE_SUBSCRIPTION_ID  }}
-          TF_STATE_RESOURCE_GROUP: ${{ env.TF_STATE_RESOURCE_GROUP }}
-          TF_STATE_BLOB_ACCOUNT: ${{ env.TF_STATE_BLOB_ACCOUNT }}
+          TF_STATE_RESOURCE_GROUP_NAME: ${{ env.TF_STATE_RESOURCE_GROUP_NAME }}
+          TF_STATE_STORAGE_ACCOUNT_NAME: ${{ env.TF_STATE_STORAGE_ACCOUNT_NAME }}
           EXTRA_FIREWALL_UNLOCKS: "${{ env.EXTRA_FIREWALL_UNLOCKS }}"

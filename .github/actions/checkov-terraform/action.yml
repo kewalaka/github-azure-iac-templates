@@ -3,40 +3,72 @@ id: run-terraform-checkov-scan
 description: Runs a scan of terraform with Checkov
 
 inputs:
-  terraform_root_path:
+  root_module_folder_relative_path:
     description: 'Relative path to root of Terraform code (usually ./iac)'
     required: true
+  checkov_environment_variables:
+    description: 'JSON object of environment variables to export before running Checkov. Defaults are provided.'
+    default: |
+      {
+        "IGNORE_HIDDEN_DIRECTORIES": "true",
+        "IGNORED_DIRECTORIES": ".terraform",
+        "CHECK_FAIL_LEVEL": "ERROR",
+        "LOG_LEVEL": "WARNING",
+        "CHECKOV_EXPERIMENTAL_TERRAFORM_MANAGED_MODULES": "true",
+        "ENABLE_FOREACH_HANDLING": "true",
+        "ENABLE_MODULES_FOREACH_HANDLING": "true"
+      }
+    type: string
+  tfvars_file:
+    description: 'Comma seperated list of paths to optional tfvars files. Paths are relative to the terraform root path.'
+    default: ''
+    type: string
 
 runs:
   using: composite
   steps:
     - name: Terraform Show Plan to Json
-      id: tf-plan-json-action
       shell: bash
-      working-directory: ${{ inputs.terraform_root_path }}
+      working-directory: ${{ inputs.root_module_folder_relative_path }}
       run: |
         terraform show -json tfplan | jq '.' > tfplan.json
 
     - name: Check for Checkov config
-      id: check-checkov-config
       shell: bash
-      working-directory: ${{ inputs.terraform_root_path }}
+      working-directory: ${{ inputs.root_module_folder_relative_path }}
       run: |
         CONFIG_FILE=".checkov.yml"
         if [ ! -f "$CONFIG_FILE" ]; then
-          echo "Checkov config file ($CONFIG_FILE) not found in ${{ inputs.terraform_root_path }}. Copying default config."
+          echo "Checkov config file ($CONFIG_FILE) not found in ${{ inputs.root_module_folder_relative_path }}. Copying default config."
           # Copy the default config from the action's directory
           cp "${{ github.action_path }}/$CONFIG_FILE" .
           ls -la "$CONFIG_FILE"
         else
-          echo "Using existing $CONFIG_FILE config file found in ${{ inputs.terraform_root_path }}."
+          echo "Using existing $CONFIG_FILE config file found in ${{ inputs.root_module_folder_relative_path }}."
         fi
 
+    - name: Install Checkov
+      shell: bash
+      run: |
+        pip install checkov
+
     - name: Terraform Scan with Checkov
-      id: checkov-scan-action
-      uses: bridgecrewio/checkov-action@v12
-      with:
-        config_file: ${{ inputs.terraform_root_path }}/.checkov.yml
+      shell: bash
+      working-directory: ${{ inputs.root_module_folder_relative_path }}
+      run: |
+        # Export all env vars from JSON object
+        echo '${{ inputs.checkov_environment_variables }}' | jq -r 'to_entries[] | "export \(.key)=\(.value)"' | while read -r line; do
+          eval "$line"
+          echo "$line"
+        done
+
+        if [ -n "${{ inputs.tfvars_file }}" ]; then
+          echo "Running Checkov with var file: ${{ inputs.tfvars_file }}"
+          checkov -d . --config-file .checkov.yml --output sarif --output-file-path results.sarif --var-file "${{ inputs.tfvars_file }}"
+        else
+          echo "Running Checkov"
+          checkov -d . --config-file .checkov.yml --output sarif --output-file-path results.sarif
+        fi
 
     - name: Upload SARIF file
       uses: github/codeql-action/upload-sarif@v3
@@ -49,4 +81,4 @@ runs:
       if: success() || failure()
       with:
         category: iac
-        sarif_file: ${{ inputs.terraform_root_path }}/results.sarif
+        sarif_file: ${{ inputs.root_module_folder_relative_path }}/results.sarif
