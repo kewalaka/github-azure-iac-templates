@@ -4,7 +4,9 @@ This repository is a collection of GitHub Actions useful for deploying Terraform
 
 It supports **multi-environment** solutions (i.e. those that need to deploy similar code to dev, test, prod, etc), with optional support for commonly required checks such as linting and code security static analysis enabled by default.
 
-Azure Blob Storage is used for state and plan artifacts, to provide stronger RBAC than is available via GitHub packages.
+For Bicep, Azure deployment stacks are used across resource group, subscription, and management group scopes.
+
+For Terraform, Azure Blob Storage is used for state and plan artifacts, to provide stronger RBAC than is available via GitHub packages.
 
 ## Quick Start
 
@@ -73,22 +75,69 @@ jobs:
 
 ```
 
-## Manual setup of of GitHub
+### Example Usage - Bicep Deployment Stacks
 
-If you'd prefer to configure GitHub manually, the following are required in the calling workflow:
+Create a workflow file (e.g., `.github/workflows/deploy-bicep.yml`) in your repository with the following content. This example uses `workflow_dispatch` for manual triggering:
 
-1. **Create Environments:** Navigate to `Settings` -> `Environments`, create two for each target environment:
-    - `<env_name>-iac-plan` (e.g., `dev-iac-plan`)
-    - `<env_name>-iac-apply` (e.g., `dev-iac-apply`)
+```yaml
+name: Bicep Deployment Stacks
 
-1. **Add Required Secrets:** Add the following **secrets** to **both** the `-plan` and `-apply` environments you just created:
-    - `ARM_CLIENT_ID`: Client ID for the User Assigned Managed Identity used for deployment.
-    - `ARM_SUBSCRIPTION_ID`: Target Azure Subscription ID for resource deployment.
-    - `ARM_TENANT_ID`: Azure Tenant ID.
+on:
+  workflow_dispatch:
+    inputs:
+      bicep_action:
+        description: 'Bicep Action'
+        default: deploy
+        type: choice
+        options:
+          - deploy
+          - plan
+      target_environment:
+        description: 'Select environment'
+        required: true
+        type: choice
+        default: dev
+        options:  # options should match your configured environments (e.g., dev, test, prod)
+          - dev
+          - test
+          - prod
+      deployment_scope:
+        description: 'Deployment scope'
+        required: true
+        type: choice
+        default: resourceGroup
+        options:
+          - resourceGroup
+          - subscription
+          - managementGroup
 
-1. For Terraform only, create the following (also in both plan and apply environments):
-    - `TF_STATE_RESOURCE_GROUP_NAME`: Resource group name containing the Terraform state storage account.
-    - `TF_STATE_STORAGE_ACCOUNT_NAME`: Storage account name for Terraform state.
+run-name: Bicep ${{ inputs.bicep_action }} (${{ inputs.target_environment }}) by @${{ github.actor }}
+
+permissions:
+  id-token: write # Required for OIDC authentication
+  contents: read  # Required to checkout code
+  pull-requests: write # Required for PR commenting during plan
+
+jobs:
+  call-bicep-deploy:
+    name: "Run bicep ${{ inputs.bicep_action }} for ${{ inputs.target_environment }}"
+    uses: kewalaka/github-azure-iac-templates/.github/workflows/bicep-deploy-template.yml@v1.0
+    with:
+      bicep_action: ${{ inputs.bicep_action }}
+      plan_target_environment: "${{ inputs.target_environment }}_plan"
+      apply_target_environment: "${{ inputs.target_environment }}_apply"
+      deployment_scope: ${{ inputs.deployment_scope }}
+      deployment_stack_name: "${{ inputs.target_environment }}-stack"  # Optional: auto-generated if not provided
+      bicep_root_path: "./iac"
+      parameters_file_path: "parameters/${{ inputs.target_environment }}.parameters.json"
+      resource_group_name: "${{ inputs.deployment_scope == 'resourceGroup' && format('rg-{0}', inputs.target_environment) || '' }}"
+      management_group_id: "${{ inputs.deployment_scope == 'managementGroup' && 'your-mg-id' || '' }}"
+      location: "eastus"
+      action_on_unmanage: "detachAll"  # Options: detachAll, deleteAll
+      deny_settings_mode: "none"       # Options: none, denyDelete, denyWriteAndDelete
+    secrets: inherit
+
+```
 
 ## Recommendation: Add Protection Rules
 
@@ -103,7 +152,9 @@ This process is completed by Az-Bootstrap.
 
 ## Optional Variables
 
-You can add these optional **secrets** to your environments (`-plan` and `-apply`) to customize behavior:
+### Terraform Variables
+
+You can add these optional **secrets** to your environments (`_plan` and `_apply`) to customize Terraform behavior:
 
 | Secret Name | Description | Default |
 | :---------- | :---------- | :------ |
@@ -116,6 +167,20 @@ You can pass additional environment variables to Terraform at runtime (via TF_VA
 | Variable Name | Description | Default |
 | :------------ | :---------- | :------ |
 | `EXTRA_TF_VARS`           | Comma-separated `key=value` pairs passed as additional `-var` arguments to Terraform (e.g., `containertag=<SHA>,subid=<GUID>`)  This should be used sparingly, only for variables that need to be computed by previous steps. | (none) |
+
+### Bicep Variables
+
+For Bicep deployment stacks, you can customize stack behavior using the following parameters:
+
+| Parameter Name | Description | Default | Options |
+| :------------ | :---------- | :------ | :------ |
+| `deployment_stack_name` | Name for the deployment stack | Auto-generated from repository name | Any valid Azure resource name |
+| `action_on_unmanage` | What happens to resources no longer managed by the stack | `detachAll` | `detachAll`, `deleteAll` |
+| `deny_settings_mode` | Operations denied on stack-managed resources | `none` | `none`, `denyDelete`, `denyWriteAndDelete` |
+
+**Note:** Stack names are automatically generated based on the calling repository name if not explicitly provided. The what-if functionality uses standard Azure deployment commands since stacks don't support what-if operations directly.
+
+### Common Variables
 
 It is possible to specify a list of resource firewalls to unlock during the pipeline run, however we recommend using self-hosted or managed runners instead of this feature:
 
