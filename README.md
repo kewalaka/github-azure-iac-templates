@@ -62,13 +62,14 @@ permissions:
 jobs:
   call-terraform-deploy:
     name: "Run terraform ${{ inputs.terraform_action }} for ${{ inputs.target_environment }}"
-    uses: kewalaka/github-azure-iac-templates/.github/actions/.github/workflows/terraform-deploy-template.yml@v1.0
+    uses: kewalaka/github-azure-iac-templates/.github/workflows/terraform-deploy-template.yml@v1.0
     with:
       terraform_action: ${{ inputs.terraform_action }}
       environment_name_plan: "${{ inputs.target_environment }}_plan"
       environment_name_apply: "${{ inputs.target_environment }}_apply"
       tfvars_file: "./environments/${{ inputs.target_environment }}.terraform.tfvars"
       destroy_resources: ${{ inputs.destroy_resources == true || inputs.terraform_action == 'destroy' }}
+      enable_infracost: true  # Optional: Enable cost estimation (requires INFRACOST_API_KEY secret)
     secrets: inherit
 
 ```
@@ -117,11 +118,39 @@ You can pass additional environment variables to Terraform at runtime (via TF_VA
 | :------------ | :---------- | :------ |
 | `EXTRA_TF_VARS`           | Comma-separated `key=value` pairs passed as additional `-var` arguments to Terraform (e.g., `containertag=<SHA>,subid=<GUID>`)  This should be used sparingly, only for variables that need to be computed by previous steps. | (none) |
 
+### Optional Secrets
+
+| Secret Name | Description | Required for |
+| :---------- | :---------- | :----------- |
+| `INFRACOST_API_KEY` | API key for [Infracost](https://www.infracost.io/) cost estimation. Sign up for free at infracost.io to get your API key. | Cost estimation feature |
+
 It is possible to specify a list of resource firewalls to unlock during the pipeline run, however we recommend using self-hosted or managed runners instead of this feature:
 
 | Variable Name | Description | Default |
 | :------------ | :---------- | :------ |
 | `EXTRA_FIREWALL_UNLOCKS`  | Comma-separated list of additional `storageaccountname` or `keyvaultname` resources whose firewalls should be temporarily opened. | (none) |
+
+## Cost Estimation with Infracost
+
+This template includes optional support for [Infracost](https://www.infracost.io/), which provides cost estimates for your Terraform infrastructure changes. When enabled, cost estimates are automatically included in the plan summary posted to pull requests.
+
+### Setting up Infracost
+
+1. **Sign up for Infracost:** Create a free account at [infracost.io](https://www.infracost.io/) to get your API key.
+1. **Add the API key:** Add `INFRACOST_API_KEY` as a **Secret** in your repository or environment settings.
+1. **Enable in workflow:** Set `enable_infracost: true` in your workflow file (see example above).
+
+### Features
+
+- **Cost Diff:** Shows the monthly cost difference between current and planned infrastructure
+- **PR Integration:** Cost estimates are automatically posted to pull request comments alongside the plan summary
+- **Optional:** The feature is disabled by default and must be explicitly enabled
+
+### Limitations
+
+- Requires network access to Infracost's pricing API
+- Cost estimates are approximations and may not include all Azure pricing factors
+- Some Terraform resources may not be supported by Infracost
 
 ## Using Templates Across Repositories
 

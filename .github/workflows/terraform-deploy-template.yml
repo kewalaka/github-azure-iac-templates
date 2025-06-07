@@ -46,6 +46,10 @@ on:
         description: 'Unlock firewall for tf state storage and any extra unlocks'
         default: false
         type: boolean
+      enable_infracost:
+        description: 'Enable Infracost cost estimation'
+        type: boolean
+        default: false
 
 permissions:
   id-token: write
@@ -69,6 +73,7 @@ jobs:
       upload_artifact: ${{ contains(fromJSON('["destroy", "apply"]'), inputs.terraform_action) }}
       azure_subscription_id: ${{ inputs.azure_subscription_id }}
       terraform_cli_version: ${{ inputs.terraform_cli_version }}
+      enable_infracost: ${{ inputs.enable_infracost }}
     secrets: inherit
 
   terraform-apply:

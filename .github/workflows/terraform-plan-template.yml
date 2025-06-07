@@ -46,6 +46,10 @@ on:
         description: 'Upload the terraform plan artifact to blob storage.  This is set to false by the calling workflow if the terraform action is plan.'
         type: boolean
         default: true
+      enable_infracost:
+        description: 'Enable Infracost cost estimation'
+        type: boolean
+        default: false
 
 jobs:
   plan:
@@ -98,7 +102,7 @@ jobs:
         
       - name: Unlock Resource Firewalls
         if: ${{ inputs.unlock_resource_firewalls }}
-        uses: kewalaka/github-azure-iac-templates/.github/actions/azure-unlock-firewall@feat/terraform-updates
+        uses: kewalaka/github-azure-iac-templates/.github/actions/azure-unlock-firewall@main
         with:
           OPERATION: "Allow"
           TF_STATE_SUBSCRIPTION_ID: ${{ env.TF_STATE_SUBSCRIPTION_ID  }}
@@ -113,7 +117,7 @@ jobs:
             terraform_version: ${{ inputs.terraform_cli_version }}            
 
       - name: Check for Terraform Backend Storage and RBAC
-        uses: kewalaka/github-azure-iac-templates/.github/actions/terraform-backend@feat/terraform-updates
+        uses: kewalaka/github-azure-iac-templates/.github/actions/terraform-backend@main
         with:
           resource_group_name: ${{ env.TF_STATE_RESOURCE_GROUP_NAME }}
           storage_account_name: ${{ env.TF_STATE_STORAGE_ACCOUNT_NAME }}
@@ -136,23 +140,50 @@ jobs:
         
       - name: Terraform Lint
         if: ${{ !inputs.bypass_static_analysis_checks }}
-        uses: kewalaka/github-azure-iac-templates/.github/actions/terraform-lint@feat/terraform-updates
+        uses: kewalaka/github-azure-iac-templates/.github/actions/terraform-lint@main
         with:
           root_module_folder_relative_path: ${{ inputs.root_module_folder_relative_path }}
           tfvars_file: ${{ env.TF_VAR_FILE }}
 
       - name: "Terraform Plan${{ inputs.destroy_resources && ' Destroy' || '' }}"
         id: plan
-        uses: kewalaka/github-azure-iac-templates/.github/actions/terraform-plan@feat/terraform-updates
+        uses: kewalaka/github-azure-iac-templates/.github/actions/terraform-plan@main
         with:
           root_module_folder_relative_path: ${{ inputs.root_module_folder_relative_path }}
           destroy_resources: ${{ inputs.destroy_resources }}
           tfvars_file: ${{ env.TF_VAR_FILE }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: "Generate Cost Estimate"
+        id: infracost
+        if: ${{ inputs.enable_infracost && github.event_name == 'pull_request' }}
+        uses: ./.github/actions/infracost
+        with:
+          terraform_root_path: ${{ inputs.root_module_folder_relative_path }}
+          tfvars_file: ${{ env.TF_VAR_FILE }}
+          infracost_api_key: ${{ secrets.INFRACOST_API_KEY }}
+
+      - name: "Post Cost Estimate to PR"
+        if: ${{ inputs.enable_infracost && github.event_name == 'pull_request' && steps.infracost.outputs.cost_summary != '' }}
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const costSummary = `${{ steps.infracost.outputs.cost_summary }}`;
+            
+            if (costSummary && costSummary.trim() !== '' && costSummary !== 'undefined') {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                body: costSummary
+              });
+              console.log('Posted cost estimate comment to PR #${context.issue.number}');
+            }          
+
       - name: Terraform Scan
         if: ${{ !inputs.bypass_static_analysis_checks }}
-        uses: kewalaka/github-azure-iac-templates/.github/actions/checkov-terraform@feat/terraform-updates
+        uses: kewalaka/github-azure-iac-templates/.github/actions/checkov-terraform@main
         with:
           root_module_folder_relative_path: ${{ inputs.root_module_folder_relative_path }}
 
@@ -183,7 +214,7 @@ jobs:
 
       - name: Lock Resource Firewalls
         if: ${{ always() && inputs.unlock_resource_firewalls }}
-        uses: kewalaka/github-azure-iac-templates/.github/actions/azure-unlock-firewall@feat/terraform-updates
+        uses: kewalaka/github-azure-iac-templates/.github/actions/azure-unlock-firewall@main
         with:
           OPERATION: "Deny"
           TF_STATE_SUBSCRIPTION_ID: ${{ env.TF_STATE_SUBSCRIPTION_ID  }}
