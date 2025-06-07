@@ -62,13 +62,10 @@ runs:
           echo "$line"
         done
 
-        if [ -n "${{ inputs.tfvars_file }}" ]; then
-          echo "Running Checkov with var file: ${{ inputs.tfvars_file }}"
-          checkov -d . --config-file .checkov.yml --output sarif --output-file-path results.sarif --var-file "${{ inputs.tfvars_file }}"
-        else
-          echo "Running Checkov"
-          checkov -d . --config-file .checkov.yml --output sarif --output-file-path results.sarif
-        fi
+        echo "Running Checkov"
+        checkov --file tfplan.json --config-file .checkov.yml `
+          --output sarif --output-file-path results.sarif  `
+          --repo-root-for-plan-enrichment . --deep-analysis
 
     - name: Upload SARIF file
       uses: github/codeql-action/upload-sarif@v3
