@@ -2,12 +2,25 @@
 
 This action runs [Infracost](https://www.infracost.io/) to generate cost estimates for Terraform infrastructure changes.
 
+When enabled, cost estimates are automatically included in the plan summary posted to pull requests.
+
+## Setting up Infracost
+
+1. **Sign up for Infracost:** Create a free account at [infracost.io](https://www.infracost.io/) to get your API key.
+1. **Add the API key:** Add `INFRACOST_API_KEY` as a **Secret** in your repository or environment settings.
+1. **Enable in workflow:** Set `enable_infracost: true` in your workflow file (see example above).
+
 ## Features
 
-- Generates cost estimates for planned Terraform changes
-- Provides baseline cost analysis of current infrastructure
-- Outputs formatted cost summary for inclusion in PR comments
-- Handles missing plan files gracefully
+- **Cost Diff:** Shows the monthly cost difference between current and planned infrastructure
+- **PR Integration:** Cost estimates are automatically posted to pull request comments alongside the plan summary
+- **Optional:** The feature is disabled by default and must be explicitly enabled
+
+## Limitations
+
+- Requires network access to Infracost's pricing API
+- Cost estimates are approximations and may not include all Azure pricing factors
+- Some Terraform resources may not be supported by Infracost
 
 ## Inputs
 
@@ -16,6 +29,7 @@ This action runs [Infracost](https://www.infracost.io/) to generate cost estimat
 | `terraform_root_path` | Relative path to root of Terraform code (usually ./iac) | Yes | - |
 | `tfvars_file` | Comma separated list of paths to optional tfvars files. Paths are relative to the terraform root path. | No | - |
 | `infracost_api_key` | Infracost API key for cost estimation | Yes | - |
+| `github_token` | Authenticate for posting to PR comments | No | - |
 
 ## Outputs
 
@@ -25,7 +39,7 @@ This action runs [Infracost](https://www.infracost.io/) to generate cost estimat
 
 ## Requirements
 
-- A valid Infracost API key (sign up at https://www.infracost.io/)
+- A valid Infracost API key (sign up at <https://www.infracost.io/>)
 - Terraform plan file (tfplan) must exist in the terraform root path
 - Terraform configuration compatible with Infracost
 

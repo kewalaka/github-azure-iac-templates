@@ -20,12 +20,25 @@ on:
         required: false
         type: string
         default: ''
-      bypass_static_analysis_checks:
+      deploy_backend:
+        description: 'Deploy the Terraform backend (storage account and containers) if not already deployed'
         type: boolean
         default: false
       destroy_resources:
         type: boolean
         default: false
+      enable_checkov:
+        description: 'Enable Checkov scan of the terraform code'
+        type: boolean
+        default: true
+      enable_infracost:
+        description: 'Enable Infracost cost estimation'
+        type: boolean
+        default: false        
+      enable_static_analysis_checks:
+        description: 'Enable TFLint, terraform validate & format checks'
+        type: boolean
+        default: true
       root_module_folder_relative_path:
         description: 'Relative path to root of Terraform code (usually ./iac)'
         default: './iac'
@@ -65,7 +78,8 @@ jobs:
       tf_state_storage_container_key: ${{ inputs.tf_state_storage_container_key }}
       unlock_resource_firewalls: ${{ inputs.unlock_resource_firewalls }}
       destroy_resources: ${{ inputs.destroy_resources }}
-      bypass_static_analysis_checks: ${{ inputs.bypass_static_analysis_checks }}
+      enable_checkov: ${{ inputs.enable_checkov }}
+      enable_static_analysis_checks: ${{ inputs.enable_static_analysis_checks }}
       upload_artifact: ${{ contains(fromJSON('["destroy", "apply"]'), inputs.terraform_action) }}
       azure_subscription_id: ${{ inputs.azure_subscription_id }}
       terraform_cli_version: ${{ inputs.terraform_cli_version }}
