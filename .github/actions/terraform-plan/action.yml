@@ -3,7 +3,7 @@ id: run-terraform-plan
 description: Runs the Terraform Plan
 
 inputs:
-  root_module_folder_relative_path:
+  root_iac_folder_relative_path:
     description: 'Relative path to root of Terraform code (usually ./iac)'
     required: true
   tfvars_file:
@@ -57,7 +57,7 @@ runs:
 
     - name: Terraform Plan
       shell: bash
-      working-directory: ${{ inputs.root_module_folder_relative_path }}
+      working-directory: ${{ inputs.root_iac_folder_relative_path }}
       run: |
         echo "Current working directory: $(pwd)"
 
@@ -74,7 +74,7 @@ runs:
     - name: Show the Plan for Review
       id: tf-plan-show-action
       shell: bash
-      working-directory: ${{ inputs.root_module_folder_relative_path }}
+      working-directory: ${{ inputs.root_iac_folder_relative_path }}
       run: |
         INSTALL_TEMP=$RUNNER_TEMP/$(uuidgen)
         mkdir $INSTALL_TEMP

@@ -8,8 +8,8 @@ Optionally, if triggered by a `pull_request` event and provided with a suitable 
 
 | Name                  | Required | Description                                                                                                | Default   |
 | :-------------------- | :------- | :--------------------------------------------------------------------------------------------------------- | :-------- |
-| `root_module_folder_relative_path` | `true`   | Relative path to the root of the Terraform code (usually `./iac`).                                         |           |
-| `tfvars_file`         | `true`   | Comma-separated list of paths to optional tfvars files. Paths are relative to the `root_module_folder_relative_path`. |           |
+| `root_iac_folder_relative_path` | `true`   | Relative path to the root of the Terraform code (usually `./iac`).                                         |           |
+| `tfvars_file`         | `true`   | Comma-separated list of paths to optional tfvars files. Paths are relative to the `root_iac_folder_relative_path`. |           |
 | `destroy_resources`    | `false`  | Set to `true` to generate a destroy plan instead of a standard plan.                                       | `'false'` |
 | `github_token`        | `false`  | GitHub token (`secrets.GITHUB_TOKEN`) used for posting plan summaries to Pull Requests. Required for PR commenting. | `''`      |
 
@@ -48,7 +48,7 @@ In the calling workflow templates in this repository, this action runs the `terr
   id: plan
   uses: <org>/<template repository>/.github/actions/terraform-plan # Adjust path/version
   with:
-    root_module_folder_relative_path: ${{ inputs.root_module_folder_relative_path }}
+    root_iac_folder_relative_path: ${{ inputs.root_iac_folder_relative_path }}
     destroy_resources: ${{ inputs.destroy_resources }}
     tfvars_file: ${{ env.TF_VAR_FILE }}
     # Pass the token to enable PR commenting when applicable

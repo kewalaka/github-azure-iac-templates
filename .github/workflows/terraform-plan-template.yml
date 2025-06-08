@@ -30,7 +30,7 @@ on:
         description: 'Enable TFLint, terraform validate & format checks'
         type: boolean
         default: true
-      root_module_folder_relative_path:
+      root_iac_folder_relative_path:
         description: 'Relative path to root of Terraform code (usually ./iac)'
         default: './iac'
         type: string
@@ -131,7 +131,7 @@ jobs:
 
       - name: Terraform Init
         shell: bash
-        working-directory: ${{ inputs.root_module_folder_relative_path }}
+        working-directory: ${{ inputs.root_iac_folder_relative_path }}
         run: |
           TF_INIT_CMD="terraform init \
             -backend-config=\"subscription_id=${{ env.TF_STATE_SUBSCRIPTION_ID }}\" \
@@ -147,14 +147,14 @@ jobs:
         if: ${{ inputs.enable_static_analysis_checks }}
         uses: kewalaka/github-azure-iac-templates/.github/actions/terraform-lint@main
         with:
-          root_module_folder_relative_path: ${{ inputs.root_module_folder_relative_path }}
+          root_iac_folder_relative_path: ${{ inputs.root_iac_folder_relative_path }}
           tfvars_file: ${{ env.TF_VAR_FILE }}
 
       - name: "Terraform Plan${{ inputs.destroy_resources && ' Destroy' || '' }}"
         id: plan
         uses: kewalaka/github-azure-iac-templates/.github/actions/terraform-plan@main
         with:
-          root_module_folder_relative_path: ${{ inputs.root_module_folder_relative_path }}
+          root_iac_folder_relative_path: ${{ inputs.root_iac_folder_relative_path }}
           destroy_resources: ${{ inputs.destroy_resources }}
           tfvars_file: ${{ env.TF_VAR_FILE }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
@@ -163,12 +163,12 @@ jobs:
         if: ${{ inputs.enable_checkov }}
         uses: kewalaka/github-azure-iac-templates/.github/actions/checkov-terraform@feat/checkov-fixes
         with:
-          root_module_folder_relative_path: ${{ inputs.root_module_folder_relative_path }}
+          root_iac_folder_relative_path: ${{ inputs.root_iac_folder_relative_path }}
 
       - name: Create and Publish Terraform Artifact
         if: ${{ inputs.upload_artifact }}
         shell: bash
-        working-directory: ${{ inputs.root_module_folder_relative_path }}
+        working-directory: ${{ inputs.root_iac_folder_relative_path }}
         run: |
           set -e
           INSTALL_TEMP=$RUNNER_TEMP/$(uuidgen)

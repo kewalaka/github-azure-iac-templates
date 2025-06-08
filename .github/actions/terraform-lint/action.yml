@@ -3,7 +3,7 @@ id: run-tflint
 description: Runs Terrform Linting checks
 
 inputs:
-  root_module_folder_relative_path:
+  root_iac_folder_relative_path:
     description: 'Relative path to root of Terraform code'
     default: './iac'
     type: string
@@ -18,14 +18,14 @@ runs:
     - name: Terraform Validate
       id: tf-validate-action
       shell: bash
-      working-directory: ${{ inputs.root_module_folder_relative_path }}
+      working-directory: ${{ inputs.root_iac_folder_relative_path }}
       run: |
         terraform validate
 
     - name: Terraform Format Check
       id: tf-format-action
       shell: bash
-      working-directory: ${{ inputs.root_module_folder_relative_path }}
+      working-directory: ${{ inputs.root_iac_folder_relative_path }}
       run: |
         terraform fmt -recursive -check || { echo $'\nFormatting needs to be fixed! Please run "terraform fmt" over your code for the above files:\nhttps://www.terraform.io/docs/commands/fmt.html' ; exit 1; }
 
@@ -40,7 +40,7 @@ runs:
     - name: Init TFLint
       id: init-tflint-action
       shell: bash
-      working-directory: ${{ inputs.root_module_folder_relative_path }}
+      working-directory: ${{ inputs.root_iac_folder_relative_path }}
       run: |
         if [ ! -f ./.tflint.hcl ]; then
           echo "TFLINT config file not found. Copying in default config."
@@ -61,7 +61,7 @@ runs:
     - name: Run TFLint
       id: run-tflint-action
       shell: bash
-      working-directory: ${{ inputs.root_module_folder_relative_path }}
+      working-directory: ${{ inputs.root_iac_folder_relative_path }}
       run: |
         if [ -n "${{ inputs.tfvars_file }}" ]; then
           echo "Running tflint with var file: ${{ inputs.tfvars_file }}"
