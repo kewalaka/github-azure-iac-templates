@@ -117,6 +117,70 @@ jobs:
           root_iac_folder_relative_path: ${{ env.BICEP_ROOT_PATH }}
           bicep_file_path: main.bicep
 
+      - name: Bicep What-If
+        id: whatif
+        shell: bash
+        working-directory: ${{ env.BICEP_ROOT_PATH }}
+        run: |
+          echo "Running Bicep What-If analysis..."
+          echo "Note: Using deployment what-if since stacks don't support what-if directly"
+          
+          # Run what-if based on scope using deployment commands (not stacks)
+          case "${{ inputs.deployment_scope }}" in
+            resourceGroup)
+              cmd="az deployment group what-if"
+              cmd+=" --resource-group ${{ inputs.resource_group_name }}"
+              cmd+=" --name ${{ steps.stack-name.outputs.stack_name }}-whatif"
+              cmd+=" --template-file compiled.arm.json"
+              
+              # Add parameters file if provided
+              if [[ -n "${{ inputs.parameters_file_path }}" ]]; then
+                cmd+=" --parameters @${{ inputs.parameters_file_path }}"
+              fi
+              
+              cmd+=" --result-format FullResourcePayloads"
+              ;;
+            subscription)
+              cmd="az deployment sub what-if"
+              cmd+=" --location ${{ inputs.location }}"
+              cmd+=" --name ${{ steps.stack-name.outputs.stack_name }}-whatif"
+              cmd+=" --template-file compiled.arm.json"
+              
+              # Add parameters file if provided
+              if [[ -n "${{ inputs.parameters_file_path }}" ]]; then
+                cmd+=" --parameters @${{ inputs.parameters_file_path }}"
+              fi
+              
+              cmd+=" --result-format FullResourcePayloads"
+              ;;
+            managementGroup)
+              cmd="az deployment mg what-if"
+              cmd+=" --management-group-id ${{ inputs.management_group_id }}"
+              cmd+=" --location ${{ inputs.location }}"
+              cmd+=" --name ${{ steps.stack-name.outputs.stack_name }}-whatif"
+              cmd+=" --template-file compiled.arm.json"
+              
+              # Add parameters file if provided
+              if [[ -n "${{ inputs.parameters_file_path }}" ]]; then
+                cmd+=" --parameters @${{ inputs.parameters_file_path }}"
+              fi
+              
+              cmd+=" --result-format FullResourcePayloads"
+              ;;
+          esac
+          
+          echo "Executing: $cmd"
+          WHATIF_OUTPUT=$($cmd)
+          
+          echo "--- What-If Output ---"
+          echo "$WHATIF_OUTPUT"
+          echo "--- End What-If Output ---"
+          
+          # Set output for PR commenting
+          echo "summary<<EOF" >> $GITHUB_OUTPUT
+          echo "$WHATIF_OUTPUT" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+          
       - name: Bicep Scan
         id: bicep-checkov
         if: ${{ inputs.enable_checkov }}
