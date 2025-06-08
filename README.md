@@ -15,7 +15,7 @@ Check the [Optional Features](#optional_features) section below to configure set
 
 ## Usage
 
-Below are manual instructions for getting started.  If you're looking to automate the bootstrap process, check out [Az-Bootstrap](https://github.com/kewalaka/az-bootstrap).
+Below are manual instructions for getting started.  If you're looking to automate this process, check out [Az-Bootstrap](https://github.com/kewalaka/az-bootstrap).
 
 ### GitHub repository settings
 
