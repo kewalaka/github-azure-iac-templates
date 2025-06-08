@@ -21,7 +21,7 @@ on:
         type: string
         default: ''
       location:
-        description: 'Azure region for deployment (required except for managementGroup scope)'
+        description: 'Azure region for deployment (required for subscription and managementGroup scopes)'
         type: string
 
       # --- Stack-related inputs ---
@@ -113,6 +113,12 @@ jobs:
         run: |
           echo "Running Bicep Deploy using Azure Deployment Stacks..."
           
+          # Check if main.bicep exists
+          if [[ ! -f "main.bicep" ]]; then
+            echo "Error: main.bicep file not found in ${{ env.BICEP_ROOT_PATH }}"
+            exit 1
+          fi
+          
           # Determine the correct az stack command based on scope
           case "${{ inputs.deployment_scope }}" in
             resourceGroup)
@@ -124,15 +130,25 @@ jobs:
               cmd+=" --resource-group ${{ inputs.resource_group_name }}"
               ;;
             subscription)
+              if [[ -z "${{ inputs.location }}" ]]; then
+                echo "Error: location is required for subscription scope"
+                exit 1
+              fi
               cmd="az stack sub create"
+              cmd+=" --location ${{ inputs.location }}"
               ;;
             managementGroup)
               if [[ -z "${{ inputs.management_group_id }}" ]]; then
                 echo "Error: management_group_id is required for managementGroup scope"
                 exit 1
               fi
+              if [[ -z "${{ inputs.location }}" ]]; then
+                echo "Error: location is required for managementGroup scope"
+                exit 1
+              fi
               cmd="az stack mg create"
               cmd+=" --management-group-id ${{ inputs.management_group_id }}"
+              cmd+=" --location ${{ inputs.location }}"
               ;;
             *)
               echo "Error: Unsupported deployment scope: ${{ inputs.deployment_scope }}"
@@ -144,8 +160,12 @@ jobs:
           # Add common parameters
           cmd+=" --name ${{ steps.stack-name.outputs.stack_name }}"
           cmd+=" --template-file main.bicep"
-          cmd+=" --parameters ${{ inputs.parameters_file_path }}"
-          cmd+=" --location ${{ inputs.location }}"
+          
+          # Add parameters file if provided
+          if [[ -n "${{ inputs.parameters_file_path }}" ]]; then
+            cmd+=" --parameters @${{ inputs.parameters_file_path }}"
+          fi
+          
           cmd+=" --action-on-unmanage ${{ inputs.action_on_unmanage }}"
           cmd+=" --deny-settings-mode ${{ inputs.deny_settings_mode }}"
           cmd+=" --yes" # Auto-confirm deployment

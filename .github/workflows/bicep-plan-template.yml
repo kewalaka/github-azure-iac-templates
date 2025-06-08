@@ -21,7 +21,7 @@ on:
         type: string
         default: ''
       location:
-        description: 'Azure region for deployment (required except for managementGroup scope)'
+        description: 'Azure region for deployment (required for subscription and managementGroup scopes)'
         type: string
         default: ''
 
@@ -115,7 +115,7 @@ jobs:
         uses: ./.github/actions/bicep-lint
         with:
           root_iac_folder_relative_path: ${{ env.BICEP_ROOT_PATH }}
-          bicep_file_path: ${{ env.BICEP_ROOT_PATH }}/main.bicep
+          bicep_file_path: main.bicep
 
       - name: Bicep Build & Validate
         id: build
@@ -123,6 +123,12 @@ jobs:
         working-directory: ${{ env.BICEP_ROOT_PATH }}
         run: |
           echo "Building and validating Bicep template..."
+          
+          # Check if main.bicep exists
+          if [[ ! -f "main.bicep" ]]; then
+            echo "Error: main.bicep file not found in ${{ env.BICEP_ROOT_PATH }}"
+            exit 1
+          fi
           
           # Build the Bicep file to ARM template
           az bicep build --file main.bicep --outfile compiled.arm.json
@@ -134,27 +140,59 @@ jobs:
                 echo "Error: resource_group_name is required for resourceGroup scope"
                 exit 1
               fi
-              az stack group validate \
-                --resource-group "${{ inputs.resource_group_name }}" \
-                --template-file compiled.arm.json \
-                $([[ -n "${{ inputs.parameters_file_path }}" ]] && echo "--parameters ${{ inputs.parameters_file_path }}" || echo "")
+              cmd="az stack group validate"
+              cmd+=" --name ${{ steps.stack-name.outputs.stack_name }}"
+              cmd+=" --resource-group ${{ inputs.resource_group_name }}"
+              cmd+=" --template-file compiled.arm.json"
+              
+              # Add parameters file if provided
+              if [[ -n "${{ inputs.parameters_file_path }}" ]]; then
+                cmd+=" --parameters @${{ inputs.parameters_file_path }}"
+              fi
+              
+              cmd+=" --action-on-unmanage ${{ inputs.action_on_unmanage }}"
+              cmd+=" --deny-settings-mode ${{ inputs.deny_settings_mode }}"
               ;;
             subscription)
-              az stack sub validate \
-                --location "${{ inputs.location }}" \
-                --template-file compiled.arm.json \
-                $([[ -n "${{ inputs.parameters_file_path }}" ]] && echo "--parameters ${{ inputs.parameters_file_path }}" || echo "")
+              if [[ -z "${{ inputs.location }}" ]]; then
+                echo "Error: location is required for subscription scope"
+                exit 1
+              fi
+              cmd="az stack sub validate"
+              cmd+=" --name ${{ steps.stack-name.outputs.stack_name }}"
+              cmd+=" --location ${{ inputs.location }}"
+              cmd+=" --template-file compiled.arm.json"
+              
+              # Add parameters file if provided
+              if [[ -n "${{ inputs.parameters_file_path }}" ]]; then
+                cmd+=" --parameters @${{ inputs.parameters_file_path }}"
+              fi
+              
+              cmd+=" --action-on-unmanage ${{ inputs.action_on_unmanage }}"
+              cmd+=" --deny-settings-mode ${{ inputs.deny_settings_mode }}"
               ;;
             managementGroup)
               if [[ -z "${{ inputs.management_group_id }}" ]]; then
                 echo "Error: management_group_id is required for managementGroup scope"
                 exit 1
               fi
-              az stack mg validate \
-                --management-group-id "${{ inputs.management_group_id }}" \
-                --location "${{ inputs.location }}" \
-                --template-file compiled.arm.json \
-                $([[ -n "${{ inputs.parameters_file_path }}" ]] && echo "--parameters ${{ inputs.parameters_file_path }}" || echo "")
+              if [[ -z "${{ inputs.location }}" ]]; then
+                echo "Error: location is required for managementGroup scope"
+                exit 1
+              fi
+              cmd="az stack mg validate"
+              cmd+=" --name ${{ steps.stack-name.outputs.stack_name }}"
+              cmd+=" --management-group-id ${{ inputs.management_group_id }}"
+              cmd+=" --location ${{ inputs.location }}"
+              cmd+=" --template-file compiled.arm.json"
+              
+              # Add parameters file if provided
+              if [[ -n "${{ inputs.parameters_file_path }}" ]]; then
+                cmd+=" --parameters @${{ inputs.parameters_file_path }}"
+              fi
+              
+              cmd+=" --action-on-unmanage ${{ inputs.action_on_unmanage }}"
+              cmd+=" --deny-settings-mode ${{ inputs.deny_settings_mode }}"
               ;;
             *)
               echo "Error: Unsupported deployment scope: ${{ inputs.deployment_scope }}"
@@ -163,6 +201,8 @@ jobs:
               ;;
           esac
           
+          echo "Executing: $cmd"
+          $cmd
           echo "Bicep validation completed successfully"
 
       - name: Bicep What-If
@@ -176,31 +216,49 @@ jobs:
           # Run what-if based on scope using deployment commands (not stacks)
           case "${{ inputs.deployment_scope }}" in
             resourceGroup)
-              WHATIF_OUTPUT=$(az deployment group what-if \
-                --resource-group "${{ inputs.resource_group_name }}" \
-                --name "${{ steps.stack-name.outputs.stack_name }}-whatif" \
-                --template-file compiled.arm.json \
-                $([[ -n "${{ inputs.parameters_file_path }}" ]] && echo "--parameters ${{ inputs.parameters_file_path }}" || echo "") \
-                --result-format FullResourcePayloads)
+              cmd="az deployment group what-if"
+              cmd+=" --resource-group ${{ inputs.resource_group_name }}"
+              cmd+=" --name ${{ steps.stack-name.outputs.stack_name }}-whatif"
+              cmd+=" --template-file compiled.arm.json"
+              
+              # Add parameters file if provided
+              if [[ -n "${{ inputs.parameters_file_path }}" ]]; then
+                cmd+=" --parameters @${{ inputs.parameters_file_path }}"
+              fi
+              
+              cmd+=" --result-format FullResourcePayloads"
               ;;
             subscription)
-              WHATIF_OUTPUT=$(az deployment sub what-if \
-                --location "${{ inputs.location }}" \
-                --name "${{ steps.stack-name.outputs.stack_name }}-whatif" \
-                --template-file compiled.arm.json \
-                $([[ -n "${{ inputs.parameters_file_path }}" ]] && echo "--parameters ${{ inputs.parameters_file_path }}" || echo "") \
-                --result-format FullResourcePayloads)
+              cmd="az deployment sub what-if"
+              cmd+=" --location ${{ inputs.location }}"
+              cmd+=" --name ${{ steps.stack-name.outputs.stack_name }}-whatif"
+              cmd+=" --template-file compiled.arm.json"
+              
+              # Add parameters file if provided
+              if [[ -n "${{ inputs.parameters_file_path }}" ]]; then
+                cmd+=" --parameters @${{ inputs.parameters_file_path }}"
+              fi
+              
+              cmd+=" --result-format FullResourcePayloads"
               ;;
             managementGroup)
-              WHATIF_OUTPUT=$(az deployment mg what-if \
-                --management-group-id "${{ inputs.management_group_id }}" \
-                --location "${{ inputs.location }}" \
-                --name "${{ steps.stack-name.outputs.stack_name }}-whatif" \
-                --template-file compiled.arm.json \
-                $([[ -n "${{ inputs.parameters_file_path }}" ]] && echo "--parameters ${{ inputs.parameters_file_path }}" || echo "") \
-                --result-format FullResourcePayloads)
+              cmd="az deployment mg what-if"
+              cmd+=" --management-group-id ${{ inputs.management_group_id }}"
+              cmd+=" --location ${{ inputs.location }}"
+              cmd+=" --name ${{ steps.stack-name.outputs.stack_name }}-whatif"
+              cmd+=" --template-file compiled.arm.json"
+              
+              # Add parameters file if provided
+              if [[ -n "${{ inputs.parameters_file_path }}" ]]; then
+                cmd+=" --parameters @${{ inputs.parameters_file_path }}"
+              fi
+              
+              cmd+=" --result-format FullResourcePayloads"
               ;;
           esac
+          
+          echo "Executing: $cmd"
+          WHATIF_OUTPUT=$($cmd)
           
           echo "--- What-If Output ---"
           echo "$WHATIF_OUTPUT"

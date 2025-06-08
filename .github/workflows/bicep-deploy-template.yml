@@ -29,7 +29,7 @@ on:
         type: string
         default: ''
       location:
-        description: 'Azure region for deployment (required except for managementGroup scope)'
+        description: 'Azure region for deployment (required for subscription and managementGroup scopes)'
         type: string
         default: ''
 
