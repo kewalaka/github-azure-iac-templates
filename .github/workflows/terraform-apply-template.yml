@@ -11,6 +11,10 @@ on:
       azure_subscription_id:
         description: 'Deployment Subscription ID. Only required if creating a subscription as part of the deployment.  Otherwise uses environment secrets.'
         type: string
+      deploy_backend: # we need this in apply because the managed identity may not have access to the storage account yet.
+        description: 'Deploy the Terraform backend (storage account and containers) if not already deployed'
+        type: boolean
+        default: false
       destroy_resources:
         description: 'Run a terraform destroy instead of apply'
         type: boolean
@@ -97,6 +101,15 @@ jobs:
             --name "${{ github.run_id }}.tar.gz"
           tar -xzf "./${{ github.run_id }}.tar.gz" -C ./
           ls -al ./
+
+      - name: Check for Terraform Backend Storage and RBAC
+        if: ${{ inputs.deploy_backend }}
+        uses: kewalaka/github-azure-iac-templates/.github/actions/terraform-backend@main
+        with:
+          resource_group_name: ${{ env.TF_STATE_RESOURCE_GROUP_NAME }}
+          storage_account_name: ${{ env.TF_STATE_STORAGE_ACCOUNT_NAME }}
+          state_container_name: ${{ env.TF_STATE_STORAGE_CONTAINER_NAME }}
+          artifact_container_name: ${{ env.ARTIFACT_STORAGE_CONTAINER_NAME }}
 
       - name: Install Terraform
         uses: hashicorp/setup-terraform@v3
