@@ -74,6 +74,7 @@ jobs:
       tf_state_storage_container_key: ${{ inputs.tf_state_storage_container_key }}
       unlock_resource_firewalls: ${{ inputs.unlock_resource_firewalls }}
       destroy_resources: ${{ inputs.destroy_resources }}
+      enable_checkov: ${{ inputs.enable_checkov }}
       enable_static_analysis_checks: ${{ inputs.enable_static_analysis_checks }}
       upload_artifact: ${{ contains(fromJSON('["destroy", "apply"]'), inputs.terraform_action) }}
       azure_subscription_id: ${{ inputs.azure_subscription_id }}
