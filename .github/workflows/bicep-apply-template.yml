@@ -2,24 +2,12 @@ name: Bicep apply template
 on:
   workflow_call:
     inputs:
-      runner_name:
-        description: 'The name of the runner pool to run on'
-        type: string
-        default: 'ubuntu-latest'
+      # required inputs
       target_environment:
         description: 'The environment run the workflow against'
         type: string
-      bicep_root_path:
-        description: 'Relative path to root of Bicep code (usually ./iac)'
-        default: './iac'
-        type: string
-      parameters_file_path:
-        description: 'Path to bicep parameters file. Path is relative to the bicep root path.'
-        type: string
-      deployment_stack_name:
-        description: 'Name for the deployment stack (auto-generated if not provided)'
-        type: string
-        default: ''
+
+      # --- Scope-related inputs ---
       deployment_scope:
         description: 'Scope of deployment: resourceGroup, subscription, or managementGroup'
         type: string
@@ -33,8 +21,14 @@ on:
         type: string
         default: ''
       location:
-        description: 'Azure region for deployment'
+        description: 'Azure region for deployment (required except for managementGroup scope)'
         type: string
+
+      # --- Stack-related inputs ---
+      deployment_stack_name:
+        description: 'Name for the deployment stack (auto-generated if not provided)'
+        type: string
+        default: ''
       action_on_unmanage:
         description: 'What happens to resources no longer managed by the stack'
         type: string
@@ -43,9 +37,22 @@ on:
         description: 'Operations denied on stack-managed resources'
         type: string
         default: 'none'
+
+      # --- Remaining inputs ---
       azure_subscription_id:
         description: 'Deployment Subscription ID. Only required if creating a subscription as part of the deployment. Otherwise use Env vars'
         type: string
+      parameters_file_path:
+        description: 'Path to bicep parameters file. Path is relative to the bicep root path.'
+        type: string
+      root_iac_folder_relative_path:
+        description: 'Relative path to root of Bicep code (usually ./iac)'
+        default: './iac'
+        type: string
+      runner_name:
+        description: 'The name of the runner pool to run on'
+        type: string
+        default: 'ubuntu-latest'
 
 jobs:
   apply:
@@ -57,12 +64,12 @@ jobs:
         contents: read
     env:
         ## azure resource manager vars
-        ARM_CLIENT_ID: "${{ vars.AZURE_CLIENT_ID }}"
-        ARM_SUBSCRIPTION_ID: "${{ inputs.azure_subscription_id || vars.AZURE_SUBSCRIPTION_ID }}"
-        ARM_TENANT_ID: "${{ vars.AZURE_TENANT_ID }}"
+        ARM_CLIENT_ID: "${{ secrets.AZURE_CLIENT_ID }}"
+        ARM_SUBSCRIPTION_ID: "${{ inputs.azure_subscription_id || secrets.AZURE_SUBSCRIPTION_ID }}"
+        ARM_TENANT_ID: "${{ secrets.AZURE_TENANT_ID }}"
         ARM_USE_AZUREAD: true
         ARM_USE_OIDC: true
-        BICEP_ROOT_PATH: ${{ inputs.bicep_root_path }}
+        BICEP_ROOT_PATH: ${{ inputs.root_iac_folder_relative_path }}
 
     steps:
       - name: Checkout Code

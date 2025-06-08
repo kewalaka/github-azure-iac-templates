@@ -3,7 +3,7 @@ id: run-terraform-checkov-scan
 description: Runs a scan of terraform with Checkov
 
 inputs:
-  root_module_folder_relative_path:
+  root_iac_folder_relative_path:
     description: 'Relative path to root of Terraform code (usually ./iac)'
     required: true
   checkov_environment_variables:
@@ -29,22 +29,22 @@ runs:
   steps:
     - name: Terraform Show Plan to Json
       shell: bash
-      working-directory: ${{ inputs.root_module_folder_relative_path }}
+      working-directory: ${{ inputs.root_iac_folder_relative_path }}
       run: |
         terraform show -json tfplan | jq '.' > tfplan.json
 
     - name: Check for Checkov config
       shell: bash
-      working-directory: ${{ inputs.root_module_folder_relative_path }}
+      working-directory: ${{ inputs.root_iac_folder_relative_path }}
       run: |
         CONFIG_FILE=".checkov.yml"
         if [ ! -f "$CONFIG_FILE" ]; then
-          echo "Checkov config file ($CONFIG_FILE) not found in ${{ inputs.root_module_folder_relative_path }}. Copying default config."
+          echo "Checkov config file ($CONFIG_FILE) not found in ${{ inputs.root_iac_folder_relative_path }}. Copying default config."
           # Copy the default config from the action's directory
           cp "${{ github.action_path }}/$CONFIG_FILE" .
           ls -la "$CONFIG_FILE"
         else
-          echo "Using existing $CONFIG_FILE config file found in ${{ inputs.root_module_folder_relative_path }}."
+          echo "Using existing $CONFIG_FILE config file found in ${{ inputs.root_iac_folder_relative_path }}."
         fi
 
     - name: Install Checkov
@@ -54,7 +54,7 @@ runs:
 
     - name: Terraform security scan with Checkov
       shell: bash
-      working-directory: ${{ inputs.root_module_folder_relative_path }}
+      working-directory: ${{ inputs.root_iac_folder_relative_path }}
       run: |
         # Export all env vars from JSON object
         echo '${{ inputs.checkov_environment_variables }}' | jq -r 'to_entries[] | "export \(.key)=\(.value)"' | while read -r line; do
@@ -78,4 +78,4 @@ runs:
       if: success() || failure()
       with:
         category: iac
-        sarif_file: ${{ inputs.root_module_folder_relative_path }}/results.sarif
+        sarif_file: ${{ inputs.root_iac_folder_relative_path }}/results.sarif

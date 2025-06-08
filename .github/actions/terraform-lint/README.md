@@ -6,8 +6,8 @@ This action is run just after a terraform init and before the plan and runs tfli
 
 | Name                  | Required | Description                  | Default |
 | :-------------------- | :------- | :--------------------------- | :------ |
-| `root_module_folder_relative_path` | `true`   | Relative path to root of Terraform code (usually `./iac`).  |  |
-| `tfvars_file`         | `true`   | Comma-separated list of paths to optional tfvars files. Paths are relative to the `root_module_folder_relative_path`. | |
+| `root_iac_folder_relative_path` | `true`   | Relative path to root of Terraform code (usually `./iac`).  |  |
+| `tfvars_file`         | `true`   | Comma-separated list of paths to optional tfvars files. Paths are relative to the `root_iac_folder_relative_path`. | |
 
 ## Outputs
 
@@ -35,13 +35,13 @@ In the calling workflow templates in this repository this action runs the tflint
   if: ${{ inputs.enable_static_analysis_checks }}
   uses: <org>/<template repository>/.github/actions/tflint
   with:
-    root_module_folder_relative_path: ${{ inputs.root_module_folder_relative_path }}
+    root_iac_folder_relative_path: ${{ inputs.root_iac_folder_relative_path }}
     tfvars_file: ${{ env.TF_VAR_FILE }}
 ```
 
 ## tflint configuration file
 
-TFLint requires configuration file in the root_module_folder_relative_path. called `.tflint.hcl`
+TFLint requires configuration file in the root_iac_folder_relative_path. called `.tflint.hcl`
 
 Contents:
 

@@ -139,11 +139,11 @@ jobs:
     uses: kewalaka/github-azure-iac-templates/.github/workflows/bicep-deploy-template.yml@v1.0
     with:
       bicep_action: ${{ inputs.bicep_action }}
-      plan_target_environment: "${{ inputs.target_environment }}_plan"
-      apply_target_environment: "${{ inputs.target_environment }}_apply"
+      environment_name_plan: "${{ inputs.target_environment }}_plan"
+      environment_name_apply: "${{ inputs.target_environment }}_apply"
       deployment_scope: ${{ inputs.deployment_scope }}
       deployment_stack_name: "${{ inputs.target_environment }}-stack"  # Optional: auto-generated if not provided
-      bicep_root_path: "./iac"
+      root_iac_folder_relative_path: "./iac"
       parameters_file_path: "parameters/${{ inputs.target_environment }}.parameters.json"
       resource_group_name: "${{ inputs.deployment_scope == 'resourceGroup' && format('rg-{0}', inputs.target_environment) || '' }}"
       management_group_id: "${{ inputs.deployment_scope == 'managementGroup' && 'your-mg-id' || '' }}"
@@ -173,7 +173,7 @@ The following section provides details of how to tune the configuration of the d
 
 ### Root folder
 
-The default folder for IaC is `./iac`.  This can be modified using `root_module_folder_relative_path`
+The default folder for IaC is `./iac`.  This can be modified using `root_iac_folder_relative_path`
 
 ### Checkov (security scanning)
 
