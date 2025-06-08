@@ -13,24 +13,32 @@ Check the [Optional Features](#optional_features) section below to configure set
 - Automatic creation of Terraform backend
 - Unlock private networking resource firewalls if not using runners
 
-## Quick Start
-
-The recommended way to get started with these templates is to use [Az-Bootstrap](https://github.com/kewalaka/az-bootstrap).
-
-Az-Bootstrap needs a template repository, you can optionally use this one: <https://github.com/kewalaka/terraform-azure-starter-template>
-
-This will create:
-
-- Azure resources (resource groups, managed identities, storage account for state file)
-- GitHub resources (environments, recommended branch protection & reviewers)
-
-The template usage includes an example of calling the re-usable workflow, set up for a single `dev` environment.
-
-If you'd prefer not to use Az-Bootstrap, check out the manual instructions below.
-
 ## Usage
 
-Create a workflow file (e.g., `.github/workflows/deploy.yml`) in your repository with the following content. This example uses `workflow_dispatch` for manual triggering:
+Below are manual instructions for getting started.  If you're looking to automate the bootstrap process, check out [Az-Bootstrap](https://github.com/kewalaka/az-bootstrap).
+
+### GitHub repository settings
+
+The following steps should be completed in the calling repository:
+
+1. **Create Environments:** Navigate to `Settings` -> `Environments`, create two for each target environment:
+    - `<env_name>-iac-plan` (e.g., `dev-iac-plan`)
+    - `<env_name>-iac-apply` (e.g., `dev-iac-apply`)
+
+1. **Add Required Secrets:** Add the following **secrets** to **both** the `-plan` and `-apply` environments you just created:
+    - `ARM_CLIENT_ID`: Client ID for the User Assigned Managed Identity used for deployment.
+    - `ARM_SUBSCRIPTION_ID`: Target Azure Subscription ID for resource deployment.
+    - `ARM_TENANT_ID`: Azure Tenant ID.
+
+1. For Terraform only, create the following (also in both plan and apply environments):
+    - `TF_STATE_RESOURCE_GROUP_NAME`: Resource group name containing the Terraform state storage account.
+    - `TF_STATE_STORAGE_ACCOUNT_NAME`: Storage account name for Terraform state.
+
+### GitHub workflow
+
+Create a workflow file (e.g., `.github/workflows/deploy.yml`) in your repository to call the deploy template.
+
+The example below uses `workflow_dispatch` for manual triggering:
 
 ```yaml
 name: Terraform Deployment
@@ -82,24 +90,7 @@ jobs:
 
 ```
 
-## Manual setup of of GitHub
-
-If you'd prefer to configure GitHub manually, the following are required in the calling workflow:
-
-1. **Create Environments:** Navigate to `Settings` -> `Environments`, create two for each target environment:
-    - `<env_name>-iac-plan` (e.g., `dev-iac-plan`)
-    - `<env_name>-iac-apply` (e.g., `dev-iac-apply`)
-
-1. **Add Required Secrets:** Add the following **secrets** to **both** the `-plan` and `-apply` environments you just created:
-    - `ARM_CLIENT_ID`: Client ID for the User Assigned Managed Identity used for deployment.
-    - `ARM_SUBSCRIPTION_ID`: Target Azure Subscription ID for resource deployment.
-    - `ARM_TENANT_ID`: Azure Tenant ID.
-
-1. For Terraform only, create the following (also in both plan and apply environments):
-    - `TF_STATE_RESOURCE_GROUP_NAME`: Resource group name containing the Terraform state storage account.
-    - `TF_STATE_STORAGE_ACCOUNT_NAME`: Storage account name for Terraform state.
-
-### Manual setup recommendation: Add Protection Rules
+## Recommendation: Add Protection Rules
 
 To prevent accidental deployments, configure protection rules on your `-apply` environments:
 
@@ -153,7 +144,7 @@ You can add these optional **secrets** to your environments (`-plan` and `-apply
 | `TF_STATE_STORAGE_CONTAINER_NAME` | Container name within the state storage account. | `tfstate` |
 | `ARTIFACT_STORAGE_CONTAINER_NAME` | Container name for storing the Terraform plan artifact. | `tfartifact` |
 
-### Additional TFVars at runtime
+### Additional TFVARS at runtime
 
 These are supplied using TF_VAR_ environment variables, using this:
 
@@ -168,6 +159,8 @@ It is possible to specify a list of resource firewalls to unlock during the pipe
 | Variable Name | Description | Default |
 | :------------ | :---------- | :------ |
 | `EXTRA_FIREWALL_UNLOCKS`  | Comma-separated list of additional `storageaccountname` or `keyvaultname` resources whose firewalls should be temporarily opened. | (none) |
+
+Check out the actions [README.md](.github/actions/azure-unlock-firewall/README.md) for more details.
 
 ## Use of storage account for Terraform artifacts
 
