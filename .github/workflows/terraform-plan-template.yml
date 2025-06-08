@@ -159,7 +159,7 @@ jobs:
           tfvars_file: ${{ env.TF_VAR_FILE }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Terraform Scan
+      - name: Terraform security scan with Checkov
         if: ${{ !inputs.enable_checkov }}
         uses: kewalaka/github-azure-iac-templates/.github/actions/checkov-terraform@feat/checkov-fixes
         with:

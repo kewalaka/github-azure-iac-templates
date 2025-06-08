@@ -23,7 +23,7 @@ For a list of supported environment variables, check the [Checkov code](https://
 ## Example usage
 
 ```yaml
-- name: Terraform Scan
+- name: Terraform security scan with Checkov
   id: tfcheckov
   uses: <org>/<template repository>/.github/actions/checkov-terraform
   with:
@@ -57,7 +57,7 @@ none
 In the calling workflow templates in this repository this action runs at the just after the terraform plan. It will only run if `enable_checkov` is set to true.
 
 ```yaml
-- name: Terraform Scan
+- name: Terraform security scan with Checkov
   id: tfcheckov
   if: ${{ inputs.enable_checkov }}
   uses: <org>/<template repository>/.github/actions/checkov-terraform

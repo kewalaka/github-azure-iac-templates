@@ -52,7 +52,7 @@ runs:
       run: |
         pip install --quiet checkov
 
-    - name: Terraform Scan with Checkov
+    - name: Terraform security scan with Checkov
       shell: bash
       working-directory: ${{ inputs.root_module_folder_relative_path }}
       run: |
