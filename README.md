@@ -4,24 +4,41 @@ This repository is a collection of GitHub Actions useful for deploying Terraform
 
 It supports **multi-environment** solutions (i.e. those that need to deploy similar code to dev, test, prod, etc), with optional support for commonly required checks such as linting and code security static analysis enabled by default.
 
-Azure Blob Storage is used for state and plan artifacts, to provide stronger RBAC than is available via GitHub packages.
+Check the [Optional Features](#optional_features) section below to configure settings for:
 
-## Quick Start
-
-The recommended way to get started with these templates is to use [Az-Bootstrap](https://github.com/kewalaka/az-bootstrap).
-
-Az-Bootstrap needs a template repository, you can optionally use this one: <https://github.com/kewalaka/terraform-azure-starter-template>
-
-This will create:
-
-- Azure resources (resource groups, managed identities, storage account for state file)
-- GitHub resources (environments, recommended branch protection & reviewers)
-
-The template usage includes an example of calling the re-usable workflow, set up for a single `dev` environment.
+- Terraform Lint
+- Checkov infrastructure scanning (tfplan enriched)
+- Additional TFVARs at run time
+- Terraform backend options
+- Automatic creation of Terraform backend
+- Unlock private networking resource firewalls if not using runners
 
 ## Usage
 
-Create a workflow file (e.g., `.github/workflows/deploy.yml`) in your repository with the following content. This example uses `workflow_dispatch` for manual triggering:
+Below are manual instructions for getting started.  If you're looking to automate this process, check out [Az-Bootstrap](https://github.com/kewalaka/az-bootstrap).
+
+### GitHub repository settings
+
+The following steps should be completed in the calling repository:
+
+1. **Create Environments:** Navigate to `Settings` -> `Environments`, create two for each target environment:
+    - `<env_name>-iac-plan` (e.g., `dev-iac-plan`)
+    - `<env_name>-iac-apply` (e.g., `dev-iac-apply`)
+
+1. **Add Required Secrets:** Add the following **secrets** to **both** the `-plan` and `-apply` environments you just created:
+    - `ARM_CLIENT_ID`: Client ID for the User Assigned Managed Identity used for deployment.
+    - `ARM_SUBSCRIPTION_ID`: Target Azure Subscription ID for resource deployment.
+    - `ARM_TENANT_ID`: Azure Tenant ID.
+
+1. For Terraform only, create the following (also in both plan and apply environments):
+    - `TF_STATE_RESOURCE_GROUP_NAME`: Resource group name containing the Terraform state storage account.
+    - `TF_STATE_STORAGE_ACCOUNT_NAME`: Storage account name for Terraform state.
+
+### GitHub workflow
+
+Create a workflow file (e.g., `.github/workflows/deploy.yml`) in your repository to call the deploy template.
+
+The example below uses `workflow_dispatch` for manual triggering:
 
 ```yaml
 name: Terraform Deployment
@@ -62,33 +79,16 @@ permissions:
 jobs:
   call-terraform-deploy:
     name: "Run terraform ${{ inputs.terraform_action }} for ${{ inputs.target_environment }}"
-    uses: kewalaka/github-azure-iac-templates/.github/actions/.github/workflows/terraform-deploy-template.yml@v1.0
+    uses: kewalaka/github-azure-iac-templates/.github/workflows/terraform-deploy-template.yml@main
     with:
       terraform_action: ${{ inputs.terraform_action }}
-      environment_name_plan: "${{ inputs.target_environment }}_plan"
-      environment_name_apply: "${{ inputs.target_environment }}_apply"
-      tfvars_file: "./environments/${{ inputs.target_environment }}.terraform.tfvars"
+      environment_name_plan: "${{ inputs.target_environment }}-iac-plan"
+      environment_name_apply: "${{ inputs.target_environment }}-iac-apply"
+      tfvars_file: "./environments/${{ inputs.target_environment }}.terraform.tfvars"      
       destroy_resources: ${{ inputs.destroy_resources == true || inputs.terraform_action == 'destroy' }}
     secrets: inherit
 
 ```
-
-## Manual setup of of GitHub
-
-If you'd prefer to configure GitHub manually, the following are required in the calling workflow:
-
-1. **Create Environments:** Navigate to `Settings` -> `Environments`, create two for each target environment:
-    - `<env_name>-iac-plan` (e.g., `dev-iac-plan`)
-    - `<env_name>-iac-apply` (e.g., `dev-iac-apply`)
-
-1. **Add Required Secrets:** Add the following **secrets** to **both** the `-plan` and `-apply` environments you just created:
-    - `ARM_CLIENT_ID`: Client ID for the User Assigned Managed Identity used for deployment.
-    - `ARM_SUBSCRIPTION_ID`: Target Azure Subscription ID for resource deployment.
-    - `ARM_TENANT_ID`: Azure Tenant ID.
-
-1. For Terraform only, create the following (also in both plan and apply environments):
-    - `TF_STATE_RESOURCE_GROUP_NAME`: Resource group name containing the Terraform state storage account.
-    - `TF_STATE_STORAGE_ACCOUNT_NAME`: Storage account name for Terraform state.
 
 ## Recommendation: Add Protection Rules
 
@@ -99,9 +99,42 @@ To prevent accidental deployments, configure protection rules on your `-apply` e
 1. Configure reviewers (users or teams) who must approve deployments to this environment.
 1. Save the protection rules.
 
-This process is completed by Az-Bootstrap.
+Az-Bootstrap performs this step automatically by default.
+
+<a id="optional_features"></a><!-- markdownlint-disable-line MD033 -->
 
 ## Optional Variables
+
+The following section provides details of how to tune the configuration of the deployment templates.
+
+### Root folder
+
+The default folder for IaC is `./iac`.  This can be modified using `root_module_folder_relative_path`
+
+### TFLint, validate and format linting
+
+This is enabled by default, can be disabled using `enable_static_analysis_checks: false`
+
+TFLint can further be configured in the calling repository by
+placing a file `.tflint.hcl` in the IaC root.
+
+Check out the actions [README.md](.github/actions/terraform-lint/README.md) for more details.
+
+### Checkov (security scanning)
+
+This is enabled by default, can be disabled using `enable_checkov: false`
+
+Check out the actions [README.md](.github/actions/checkov-terraform/README.md) for more details.
+
+### Automatic Terraform backend
+
+If the pipeline principal has sufficient permissions, it is possible to make the Terraform backend automatically.  This action can also be used to check the backend is available.
+
+This is disabled by default, can be enabled using `deploy_backend: true`
+
+Check out the actions [README.md](.github/actions/terraform-backend/README.md) for more details.
+
+### Terraform storage account configurable options
 
 You can add these optional **secrets** to your environments (`-plan` and `-apply`) to customize behavior:
 
@@ -111,17 +144,27 @@ You can add these optional **secrets** to your environments (`-plan` and `-apply
 | `TF_STATE_STORAGE_CONTAINER_NAME` | Container name within the state storage account. | `tfstate` |
 | `ARTIFACT_STORAGE_CONTAINER_NAME` | Container name for storing the Terraform plan artifact. | `tfartifact` |
 
-You can pass additional environment variables to Terraform at runtime (via TF_VAR_), using this:
+### Additional TFVARS at runtime
+
+These are supplied using TF_VAR_ environment variables, using this:
 
 | Variable Name | Description | Default |
 | :------------ | :---------- | :------ |
 | `EXTRA_TF_VARS`           | Comma-separated `key=value` pairs passed as additional `-var` arguments to Terraform (e.g., `containertag=<SHA>,subid=<GUID>`)  This should be used sparingly, only for variables that need to be computed by previous steps. | (none) |
+
+### Unlock private networking resource firewalls
 
 It is possible to specify a list of resource firewalls to unlock during the pipeline run, however we recommend using self-hosted or managed runners instead of this feature:
 
 | Variable Name | Description | Default |
 | :------------ | :---------- | :------ |
 | `EXTRA_FIREWALL_UNLOCKS`  | Comma-separated list of additional `storageaccountname` or `keyvaultname` resources whose firewalls should be temporarily opened. | (none) |
+
+Check out the actions [README.md](.github/actions/azure-unlock-firewall/README.md) for more details.
+
+## Use of storage account for Terraform artifacts
+
+Azure Blob Storage is used for state and plan artifacts, to provide stronger RBAC than is available via GitHub packages.
 
 ## Using Templates Across Repositories
 

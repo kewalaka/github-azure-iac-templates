@@ -27,12 +27,12 @@ This action uses the following environment variable indirectly via the `tfvars_f
 
 ## Usage
 
-In the calling workflow templates in this repository this action runs the tflint step.  It will only run if bypass_static_analysis_checks is set to false.
+In the calling workflow templates in this repository this action runs the tflint step.  It will run unless `enable_static_analysis_checks` is set to false.
 
 ```yaml
 - name: Terraform Lint
   id: tflint
-  if: ${{ !inputs.bypass_static_analysis_checks }}
+  if: ${{ inputs.enable_static_analysis_checks }}
   uses: <org>/<template repository>/.github/actions/tflint
   with:
     root_module_folder_relative_path: ${{ inputs.root_module_folder_relative_path }}
