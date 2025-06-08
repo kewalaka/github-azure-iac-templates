@@ -160,7 +160,7 @@ jobs:
           github_token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Terraform security scan with Checkov
-        if: ${{ !inputs.enable_checkov }}
+        if: ${{ inputs.enable_checkov }}
         uses: kewalaka/github-azure-iac-templates/.github/actions/checkov-terraform@feat/checkov-fixes
         with:
           root_module_folder_relative_path: ${{ inputs.root_module_folder_relative_path }}

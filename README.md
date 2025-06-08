@@ -122,7 +122,7 @@ Check out the actions [README.md](.github/actions/terraform-lint/README.md) for 
 
 ### Checkov (security scanning)
 
-This is enabeld by default, can be disabled using `enable_checkov: false`
+This is enabled by default, can be disabled using `enable_checkov: false`
 
 Check out the actions [README.md](.github/actions/checkov-terraform/README.md) for more details.
 
