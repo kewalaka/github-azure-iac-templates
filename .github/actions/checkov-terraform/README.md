@@ -23,7 +23,7 @@ For a list of supported environment variables, check the [Checkov code](https://
 ## Example usage
 
 ```yaml
-- name: Terraform Scan
+- name: Terraform security scan with Checkov
   id: tfcheckov
   uses: <org>/<template repository>/.github/actions/checkov-terraform
   with:
@@ -54,12 +54,12 @@ none
 
 ## Usage
 
-In the calling workflow templates in this repository this action runs at the just after the terraform plan. It will only run if bypass_static_analysis_checks is set to false.
+In the calling workflow templates in this repository this action runs at the just after the terraform plan. It will only run if `enable_checkov` is set to true.
 
 ```yaml
-- name: Terraform Scan
+- name: Terraform security scan with Checkov
   id: tfcheckov
-  if: ${{ !inputs.bypass_static_analysis_checks }}
+  if: ${{ inputs.enable_checkov }}
   uses: <org>/<template repository>/.github/actions/checkov-terraform
   with:
     root_module_folder_relative_path: ${{ inputs.root_module_folder_relative_path }}

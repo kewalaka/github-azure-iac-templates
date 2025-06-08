@@ -14,14 +14,22 @@ on:
       azure_subscription_id:
         description: 'Deployment Subscription ID. Only required if creating a subscription as part of the deployment. Otherwise uses environment secrets.'
         type: string
-      bypass_static_analysis_checks:
-        description: 'Bypass terraform lint and checkov checks'
+      deploy_backend:
+        description: 'Deploy the Terraform backend (storage account and containers) if not already deployed'
         type: boolean
         default: false
       destroy_resources:
         description: 'Run a terraform destroy instead of apply'
         type: boolean
-        default: false
+        default: false        
+      enable_checkov:
+        description: 'Enable Checkov scan of the terraform code'
+        type: boolean
+        default: true
+      enable_static_analysis_checks:
+        description: 'Enable TFLint, terraform validate & format checks'
+        type: boolean
+        default: true
       root_module_folder_relative_path:
         description: 'Relative path to root of Terraform code (usually ./iac)'
         default: './iac'
@@ -98,7 +106,7 @@ jobs:
         
       - name: Unlock Resource Firewalls
         if: ${{ inputs.unlock_resource_firewalls }}
-        uses: kewalaka/github-azure-iac-templates/.github/actions/azure-unlock-firewall@feat/terraform-updates
+        uses: kewalaka/github-azure-iac-templates/.github/actions/azure-unlock-firewall@main
         with:
           OPERATION: "Allow"
           TF_STATE_SUBSCRIPTION_ID: ${{ env.TF_STATE_SUBSCRIPTION_ID  }}
@@ -106,19 +114,20 @@ jobs:
           TF_STATE_STORAGE_ACCOUNT_NAME: ${{ env.TF_STATE_STORAGE_ACCOUNT_NAME }}
           EXTRA_FIREWALL_UNLOCKS: "${{ env.EXTRA_FIREWALL_UNLOCKS }}"
 
-      - name: Install Terraform
-        uses: hashicorp/setup-terraform@v3
-        with:
-            terraform_wrapper: false
-            terraform_version: ${{ inputs.terraform_cli_version }}            
-
       - name: Check for Terraform Backend Storage and RBAC
-        uses: kewalaka/github-azure-iac-templates/.github/actions/terraform-backend@feat/terraform-updates
+        if: ${{ inputs.deploy_backend }}
+        uses: kewalaka/github-azure-iac-templates/.github/actions/terraform-backend@main
         with:
           resource_group_name: ${{ env.TF_STATE_RESOURCE_GROUP_NAME }}
           storage_account_name: ${{ env.TF_STATE_STORAGE_ACCOUNT_NAME }}
           state_container_name: ${{ env.TF_STATE_STORAGE_CONTAINER_NAME }}
           artifact_container_name: ${{ env.ARTIFACT_STORAGE_CONTAINER_NAME }}
+
+      - name: Install Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+            terraform_wrapper: false
+            terraform_version: ${{ inputs.terraform_cli_version }}            
 
       - name: Terraform Init
         shell: bash
@@ -135,24 +144,24 @@ jobs:
           eval $TF_INIT_CMD
         
       - name: Terraform Lint
-        if: ${{ !inputs.bypass_static_analysis_checks }}
-        uses: kewalaka/github-azure-iac-templates/.github/actions/terraform-lint@feat/terraform-updates
+        if: ${{ inputs.enable_static_analysis_checks }}
+        uses: kewalaka/github-azure-iac-templates/.github/actions/terraform-lint@main
         with:
           root_module_folder_relative_path: ${{ inputs.root_module_folder_relative_path }}
           tfvars_file: ${{ env.TF_VAR_FILE }}
 
       - name: "Terraform Plan${{ inputs.destroy_resources && ' Destroy' || '' }}"
         id: plan
-        uses: kewalaka/github-azure-iac-templates/.github/actions/terraform-plan@feat/terraform-updates
+        uses: kewalaka/github-azure-iac-templates/.github/actions/terraform-plan@main
         with:
           root_module_folder_relative_path: ${{ inputs.root_module_folder_relative_path }}
           destroy_resources: ${{ inputs.destroy_resources }}
           tfvars_file: ${{ env.TF_VAR_FILE }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Terraform Scan
-        if: ${{ !inputs.bypass_static_analysis_checks }}
-        uses: kewalaka/github-azure-iac-templates/.github/actions/checkov-terraform@feat/terraform-updates
+      - name: Terraform security scan with Checkov
+        if: ${{ inputs.enable_checkov }}
+        uses: kewalaka/github-azure-iac-templates/.github/actions/checkov-terraform@feat/checkov-fixes
         with:
           root_module_folder_relative_path: ${{ inputs.root_module_folder_relative_path }}
 
@@ -183,7 +192,7 @@ jobs:
 
       - name: Lock Resource Firewalls
         if: ${{ always() && inputs.unlock_resource_firewalls }}
-        uses: kewalaka/github-azure-iac-templates/.github/actions/azure-unlock-firewall@feat/terraform-updates
+        uses: kewalaka/github-azure-iac-templates/.github/actions/azure-unlock-firewall@main
         with:
           OPERATION: "Deny"
           TF_STATE_SUBSCRIPTION_ID: ${{ env.TF_STATE_SUBSCRIPTION_ID  }}
