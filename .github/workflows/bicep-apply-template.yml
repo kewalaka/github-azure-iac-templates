@@ -1,0 +1,174 @@
+name: Bicep apply template
+on:
+  workflow_call:
+    inputs:
+      # required inputs
+      target_environment:
+        description: 'The environment run the workflow against'
+        type: string
+
+      # --- Scope-related inputs ---
+      deployment_scope:
+        description: 'Scope of deployment: resourceGroup, subscription, or managementGroup'
+        type: string
+        default: 'resourceGroup'
+      resource_group_name:
+        description: 'Azure Resource Group name (required if scope is resourceGroup)'
+        type: string
+        default: ''
+      management_group_id:
+        description: 'Management Group ID (required if scope is managementGroup)'
+        type: string
+        default: ''
+      location:
+        description: 'Azure region for deployment (required for subscription and managementGroup scopes)'
+        type: string
+
+      # --- Stack-related inputs ---
+      deployment_stack_name:
+        description: 'Name for the deployment stack (auto-generated if not provided)'
+        type: string
+        default: ''
+      action_on_unmanage:
+        description: 'What happens to resources no longer managed by the stack'
+        type: string
+        default: 'detachAll'
+      deny_settings_mode:
+        description: 'Operations denied on stack-managed resources'
+        type: string
+        default: 'none'
+
+      # --- Remaining inputs ---
+      azure_subscription_id:
+        description: 'Deployment Subscription ID. Only required if creating a subscription as part of the deployment. Otherwise use Env vars'
+        type: string
+      parameters_file_path:
+        description: 'Path to bicep parameters file. Path is relative to the bicep root path.'
+        type: string
+      root_iac_folder_relative_path:
+        description: 'Relative path to root of Bicep code (usually ./iac)'
+        default: './iac'
+        type: string
+      runner_name:
+        description: 'The name of the runner pool to run on'
+        type: string
+        default: 'ubuntu-latest'
+
+jobs:
+  apply:
+    name: "Bicep Apply"
+    runs-on: ${{ inputs.runner_name }}
+    environment: ${{ inputs.target_environment }}
+    permissions:
+        id-token: write
+        contents: read
+    env:
+        ## azure resource manager vars
+        ARM_CLIENT_ID: "${{ secrets.AZURE_CLIENT_ID }}"
+        ARM_SUBSCRIPTION_ID: "${{ inputs.azure_subscription_id || secrets.AZURE_SUBSCRIPTION_ID }}"
+        ARM_TENANT_ID: "${{ secrets.AZURE_TENANT_ID }}"
+        ARM_USE_AZUREAD: true
+        ARM_USE_OIDC: true
+        BICEP_ROOT_PATH: ${{ inputs.root_iac_folder_relative_path }}
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Login to Azure
+        uses: azure/login@v2
+        with:
+          client-id: ${{ env.ARM_CLIENT_ID }}
+          tenant-id: ${{ env.ARM_TENANT_ID }}
+          subscription-id: ${{ env.ARM_SUBSCRIPTION_ID }}
+          enable-AzPSSession: false
+
+      - name: Generate Stack Name
+        id: stack-name
+        shell: bash
+        run: |
+          if [[ -n "${{ inputs.deployment_stack_name }}" ]]; then
+            echo "stack_name=${{ inputs.deployment_stack_name }}" >> $GITHUB_OUTPUT
+          else
+            # Try to infer from repository name
+            repo_name="${{ github.repository }}"
+            repo_name="${repo_name##*/}"  # Remove owner prefix
+            repo_name="${repo_name,,}"    # Convert to lowercase
+            repo_name="${repo_name//_/-}" # Replace underscores with hyphens
+            
+            if [[ -n "$repo_name" && "$repo_name" != "" ]]; then
+              stack_name="${repo_name}-stack"
+            else
+              # Fallback to date/time
+              stack_name="stack-$(date +%Y%m%d-%H%M%S)"
+            fi
+            
+            echo "Generated stack name: $stack_name"
+            echo "stack_name=$stack_name" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Bicep Deploy
+        shell: bash
+        working-directory: ${{ env.BICEP_ROOT_PATH }}
+        run: |
+          echo "Running Bicep Deploy using Azure Deployment Stacks..."
+          
+          # Check if main.bicep exists
+          if [[ ! -f "main.bicep" ]]; then
+            echo "Error: main.bicep file not found in ${{ env.BICEP_ROOT_PATH }}"
+            exit 1
+          fi
+          
+          # Determine the correct az stack command based on scope
+          case "${{ inputs.deployment_scope }}" in
+            resourceGroup)
+              if [[ -z "${{ inputs.resource_group_name }}" ]]; then
+                echo "Error: resource_group_name is required for resourceGroup scope"
+                exit 1
+              fi
+              cmd="az stack group create"
+              cmd+=" --resource-group ${{ inputs.resource_group_name }}"
+              ;;
+            subscription)
+              if [[ -z "${{ inputs.location }}" ]]; then
+                echo "Error: location is required for subscription scope"
+                exit 1
+              fi
+              cmd="az stack sub create"
+              cmd+=" --location ${{ inputs.location }}"
+              ;;
+            managementGroup)
+              if [[ -z "${{ inputs.management_group_id }}" ]]; then
+                echo "Error: management_group_id is required for managementGroup scope"
+                exit 1
+              fi
+              if [[ -z "${{ inputs.location }}" ]]; then
+                echo "Error: location is required for managementGroup scope"
+                exit 1
+              fi
+              cmd="az stack mg create"
+              cmd+=" --management-group-id ${{ inputs.management_group_id }}"
+              cmd+=" --location ${{ inputs.location }}"
+              ;;
+            *)
+              echo "Error: Unsupported deployment scope: ${{ inputs.deployment_scope }}"
+              echo "Supported scopes: resourceGroup, subscription, managementGroup"
+              exit 1
+              ;;
+          esac
+          
+          # Add common parameters
+          cmd+=" --name ${{ steps.stack-name.outputs.stack_name }}"
+          cmd+=" --template-file main.bicep"
+          
+          # Add parameters file if provided
+          if [[ -n "${{ inputs.parameters_file_path }}" ]]; then
+            cmd+=" --parameters @${{ inputs.parameters_file_path }}"
+          fi
+          
+          cmd+=" --action-on-unmanage ${{ inputs.action_on_unmanage }}"
+          cmd+=" --deny-settings-mode ${{ inputs.deny_settings_mode }}"
+          cmd+=" --yes" # Auto-confirm deployment
+          
+          echo "Executing: $cmd"
+          $cmd

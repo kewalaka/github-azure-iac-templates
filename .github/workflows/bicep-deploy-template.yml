@@ -1,0 +1,113 @@
+name: Bicep deploy template
+on:
+  workflow_call:
+    inputs:
+      # required inputs
+      bicep_action:
+        description: 'Run Plan or Deploy'
+        type: string
+      environment_name_plan:
+        description: 'The GitHub environment to run the plan job against.  e.g. dev-iac-plan'
+        type: string
+      environment_name_apply:
+        description: 'The GitHub environment to run the apply job against.  e.g. dev-iac-apply'
+        type: string
+
+      # optional inputs
+
+      # --- Scope-related inputs ---
+      deployment_scope:
+        description: 'Scope of deployment: resourceGroup, subscription, or managementGroup'
+        type: string
+        default: 'resourceGroup'
+      resource_group_name:
+        description: 'Azure Resource Group name (required if scope is resourceGroup)'
+        type: string
+        default: ''
+      management_group_id:
+        description: 'Management Group ID (required if scope is managementGroup)'
+        type: string
+        default: ''
+      location:
+        description: 'Azure region for deployment (required for subscription and managementGroup scopes)'
+        type: string
+        default: ''
+
+      # --- Stack-related inputs ---
+      deployment_stack_name:
+        description: 'Name for the deployment stack (auto-generated if not provided)'
+        type: string
+        default: ''
+      action_on_unmanage:
+        description: 'What happens to resources no longer managed by the stack'
+        type: string
+        default: 'detachAll'
+      deny_settings_mode:
+        description: 'Operations denied on stack-managed resources'
+        type: string
+        default: 'none'
+
+      # --- Remaining inputs ---
+      azure_subscription_id:
+        description: 'Deployment Subscription ID. Only required if creating a subscription as part of the deployment. Otherwise use Env vars'
+        type: string
+      enable_checkov:
+        type: boolean
+        default: true
+      parameters_file_path:
+        description: 'Path to bicep parameters file. Path is relative to the bicep root path.'
+        type: string
+      root_iac_folder_relative_path:
+        description: 'Relative path to root of Bicep code (usually ./iac)'
+        default: './iac'
+        type: string
+      runner_name:
+        description: 'The name of the runner pool to run on'
+        type: string
+        default: 'ubuntu-latest'
+
+permissions:
+  id-token: write
+  contents: read
+  pull-requests: write
+  security-events: write
+
+jobs:
+  bicep-plan:
+    name: "Run bicep plan for ${{ inputs.environment_name_plan }}"
+    uses: ./.github/workflows/bicep-plan-template.yml
+    with:
+      action_on_unmanage: ${{ inputs.action_on_unmanage }}
+      azure_subscription_id: ${{ inputs.azure_subscription_id }}
+      deny_settings_mode: ${{ inputs.deny_settings_mode }}
+      deployment_scope: ${{ inputs.deployment_scope }}
+      deployment_stack_name: ${{ inputs.deployment_stack_name }}
+      enable_checkov: ${{ inputs.enable_checkov }}
+      location: ${{ inputs.location }}
+      management_group_id: ${{ inputs.management_group_id }}
+      parameters_file_path: ${{ inputs.parameters_file_path }}
+      resource_group_name: ${{ inputs.resource_group_name }}
+      root_iac_folder_relative_path: ${{ inputs.root_iac_folder_relative_path }}
+      runner_name: ${{ inputs.runner_name }}
+      target_environment: ${{ inputs.environment_name_plan }}
+    secrets: inherit
+
+  bicep-apply:
+    needs: bicep-plan
+    name: "Run bicep deploy for ${{ inputs.environment_name_apply }}"
+    if: ${{ inputs.bicep_action == 'deploy' }}
+    uses: ./.github/workflows/bicep-apply-template.yml
+    with:
+      action_on_unmanage: ${{ inputs.action_on_unmanage }}
+      azure_subscription_id: ${{ inputs.azure_subscription_id }}
+      deny_settings_mode: ${{ inputs.deny_settings_mode }}
+      deployment_scope: ${{ inputs.deployment_scope }}
+      deployment_stack_name: ${{ inputs.deployment_stack_name }}
+      location: ${{ inputs.location }}
+      management_group_id: ${{ inputs.management_group_id }}
+      parameters_file_path: ${{ inputs.parameters_file_path }}
+      resource_group_name: ${{ inputs.resource_group_name }}
+      root_iac_folder_relative_path: ${{ inputs.root_iac_folder_relative_path }}
+      runner_name: ${{ inputs.runner_name }}
+      target_environment: ${{ inputs.environment_name_apply }}
+    secrets: inherit
