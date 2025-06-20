@@ -181,6 +181,14 @@ This is enabled by default, can be disabled using `enable_checkov: false`
 
 Check out the actions [README.md](.github/actions/checkov-terraform/README.md) for more details.
 
+### Infracost (cost estimation)
+
+[Infracost](https://www.infracost.io/) is disabled by default, can be enabled using `enable_infracost: true`, and supplying the INFRACOST_API_KEY via GitHub secrets.
+
+| Secret Name | Description |
+| :---------- | :---------- |
+| `INFRACOST_API_KEY` | API key for Infracost. Sign up for free at infracost.io to get your API key. |
+
 ### Unlock private networking resource firewalls
 
 It is possible to specify a list of resource firewalls to unlock during the pipeline run, however we recommend using self-hosted or managed runners instead of this feature:
@@ -229,6 +237,8 @@ These are supplied using TF_VAR_ environment variables, using this:
 | `EXTRA_TF_VARS`           | Comma-separated `key=value` pairs passed as additional `-var` arguments to Terraform (e.g., `containertag=<SHA>,subid=<GUID>`)  This should be used sparingly, only for variables that need to be computed by previous steps. | (none) |
 
 ## Bicep-specific optional variables
+
+### Unlock private networking resource firewalls (Bicep)
 
 For Bicep deployment stacks, you can customize stack behavior using the following parameters:
 

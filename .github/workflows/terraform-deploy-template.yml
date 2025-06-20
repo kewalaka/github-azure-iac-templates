@@ -32,7 +32,11 @@ on:
       enable_checkov:
         description: 'Enable Checkov scan of the terraform code'
         type: boolean
-        default: true          
+        default: true
+      enable_infracost:
+        description: 'Enable Infracost cost estimation'
+        type: boolean
+        default: false        
       enable_static_analysis_checks:
         description: 'Enable TFLint, terraform validate & format checks'
         type: boolean
