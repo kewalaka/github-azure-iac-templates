@@ -1,9 +1,33 @@
 # Unlock resource firewalls during CI
 
 > [!WARNING]
-> Using either self-hosted or managed runners is preferred to this mechanism.  This action temporarily modifies Azure resource firewall rules to grant access during deployment, and then closes the firewall afterwards.  Using an allow list on the resources is impractical given the large numbers of IP addresses that GitHub-hosted runners can originate from.  
+> Using either self-hosted or managed runners is preferred to this mechanism.  This is a hacky workaround!
 
-This action is run before and after the terraform init/plan/apply/destroy steps. This is required when using public runners to execute the terraform steps to allow access to the terraform state storage account and any key vaults and storage accounts specified in the EXTRA_FIREWALL_UNLOCKS. Full details of each parameter can be found in the powershell script `Update-azure-unlock-firewallAction.ps1`.
+This action temporarily modifies Azure resource firewall rules to grant access during deployment, and then closes the firewall afterwards.
+
+This allows the usage of the GitHub public runners out of the box whilst keeping certain resources secure
+(out of the box, it supports the Terraform storage account, other storage accounts and keyvaults can be unlocked using the `EXTRA_FIREWALL_UNLOCKS` parameter).
+
+To use with the `terraform-deploy-template.yml` workflow, simply add `unlock_resource_firewall` option, and make sure the deployment principal has rights to unlock the firewall (e.g. Storage Contributor)
+
+```yaml
+jobs:
+  call-terraform-deploy:
+    name: "Run terraform ${{ inputs.terraform_action }} for ${{ inputs.target_environment }}"
+    uses: kewalaka/github-azure-iac-templates/.github/workflows/terraform-deploy-template.yml@main
+    with:
+      terraform_action: ${{ inputs.terraform_action }}
+      environment_name_plan: "${{ inputs.target_environment }}-iac-plan"
+      environment_name_apply: "${{ inputs.target_environment }}-iac-apply"
+      tfvars_file: "./environments/${{ inputs.target_environment }}.terraform.tfvars"
+      destroy_resources: ${{ inputs.destroy_resources == true || inputs.terraform_action == 'destroy' }}
+      unlock_resource_firewalls: true # Add this (and don't forget to grant RBAC permissions as noted above)!
+    secrets: inherit
+```
+
+The action will run before and after the terraform init/plan/apply/destroy steps.
+
+For more complex options, or to use this action directly, see the notes below.  Full details of each parameter can be found in the powershell script [Set-ResourceFirewallAction.ps1](Set-ResourceFirewallAction.ps1).
 
 ## Inputs
 
