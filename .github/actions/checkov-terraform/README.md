@@ -6,7 +6,7 @@ This action scans the terraform plan output for security issues with resource cr
 
 | Name                                   | Required | Description                                                                                      | Default         |
 | :-------------------------------------- | :------- | :----------------------------------------------------------------------------------------------- | :-------------- |
-| `root_module_folder_relative_path`      | `true`   | Relative path to root of Terraform code (usually `./iac`).                                       |                 |
+| `root_iac_folder_relative_path`      | `true`   | Relative path to root of Terraform code (usually `./iac`).                                       |                 |
 | `tfvars_file`                          | `false`  | Comma separated list of paths to optional tfvars files. Paths are relative to the terraform root. | `""`            |
 | `checkov_environment_variables`         | `false`  | JSON object of additional environment variables to export before running Checkov.                 | `{}`            |
 
@@ -27,7 +27,7 @@ For a list of supported environment variables, check the [Checkov code](https://
   id: tfcheckov
   uses: <org>/<template repository>/.github/actions/checkov-terraform
   with:
-    root_module_folder_relative_path: ${{ inputs.root_module_folder_relative_path }}
+    root_iac_folder_relative_path: ${{ inputs.root_iac_folder_relative_path }}
     tfvars_file: ${{ inputs.tfvars_file }}
     checkov_environment_variables: |
       {
@@ -62,7 +62,7 @@ In the calling workflow templates in this repository this action runs at the jus
   if: ${{ inputs.enable_checkov }}
   uses: <org>/<template repository>/.github/actions/checkov-terraform
   with:
-    root_module_folder_relative_path: ${{ inputs.root_module_folder_relative_path }}
+    root_iac_folder_relative_path: ${{ inputs.root_iac_folder_relative_path }}
 ```
 
 ## Suppress errors

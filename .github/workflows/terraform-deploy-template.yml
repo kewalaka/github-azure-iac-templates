@@ -2,6 +2,7 @@ name: Terraform deploy template
 on:
   workflow_call:
     inputs:
+      # required inputs      
       terraform_action:
         description: 'Terraform action to run (plan, apply, destroy)'
         type: string
@@ -15,6 +16,7 @@ on:
         description: 'TFvars file that has environment specified settings. Paths are relative to the terraform root path (e.g. ./iac/environments/dev.tfvars)'
         type: string
 
+      # optional inputs
       azure_subscription_id:
         description: 'Azure Subscription ID for this run (overrides env.ARM_SUBSCRIPTION_ID)'
         required: false
@@ -30,12 +32,16 @@ on:
       enable_checkov:
         description: 'Enable Checkov scan of the terraform code'
         type: boolean
-        default: true          
+        default: true
+      enable_infracost:
+        description: 'Enable Infracost cost estimation'
+        type: boolean
+        default: false        
       enable_static_analysis_checks:
         description: 'Enable TFLint, terraform validate & format checks'
         type: boolean
         default: true
-      root_module_folder_relative_path:
+      root_iac_folder_relative_path:
         description: 'Relative path to root of Terraform code (usually ./iac)'
         default: './iac'
         type: string
@@ -67,18 +73,18 @@ jobs:
     name: "Run terraform plan${{ inputs.destroy_resources && ' destroy' || '' }} for ${{ inputs.environment_name_plan }}"
     uses: ./.github/workflows/terraform-plan-template.yml
     with:
-      runner_name: ${{ inputs.runner_name }}
-      target_environment: ${{ inputs.environment_name_plan }}
-      root_module_folder_relative_path: ${{ inputs.root_module_folder_relative_path }}
-      tfvars_file: ${{ inputs.tfvars_file }}
-      tf_state_storage_container_key: ${{ inputs.tf_state_storage_container_key }}
-      unlock_resource_firewalls: ${{ inputs.unlock_resource_firewalls }}
+      azure_subscription_id: ${{ inputs.azure_subscription_id }}
       destroy_resources: ${{ inputs.destroy_resources }}
       enable_checkov: ${{ inputs.enable_checkov }}
       enable_static_analysis_checks: ${{ inputs.enable_static_analysis_checks }}
-      upload_artifact: ${{ contains(fromJSON('["destroy", "apply"]'), inputs.terraform_action) }}
-      azure_subscription_id: ${{ inputs.azure_subscription_id }}
+      root_iac_folder_relative_path: ${{ inputs.root_iac_folder_relative_path }}
+      runner_name: ${{ inputs.runner_name }}
+      target_environment: ${{ inputs.environment_name_plan }}
       terraform_cli_version: ${{ inputs.terraform_cli_version }}
+      tf_state_storage_container_key: ${{ inputs.tf_state_storage_container_key }}
+      tfvars_file: ${{ inputs.tfvars_file }}
+      unlock_resource_firewalls: ${{ inputs.unlock_resource_firewalls }}
+      upload_artifact: ${{ contains(fromJSON('["destroy", "apply"]'), inputs.terraform_action) }}
     secrets: inherit
 
   terraform-apply:
@@ -87,11 +93,11 @@ jobs:
     if: ${{ contains(fromJSON('["destroy", "apply"]'), inputs.terraform_action) }}
     uses: ./.github/workflows/terraform-apply-template.yml
     with:
+      azure_subscription_id: ${{ inputs.azure_subscription_id }}
+      destroy_resources: ${{ inputs.destroy_resources }}
       runner_name: ${{ inputs.runner_name }}
       target_environment: ${{ inputs.environment_name_apply }}
+      terraform_cli_version: ${{ inputs.terraform_cli_version }}
       tf_state_storage_container_key: ${{ inputs.tf_state_storage_container_key }}
       unlock_resource_firewalls: ${{ inputs.unlock_resource_firewalls }}
-      destroy_resources: ${{ inputs.destroy_resources }}
-      azure_subscription_id: ${{ inputs.azure_subscription_id }}
-      terraform_cli_version: ${{ inputs.terraform_cli_version }}
     secrets: inherit

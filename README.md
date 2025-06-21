@@ -90,6 +90,70 @@ jobs:
 
 ```
 
+### Example Usage - Bicep Deployment Stacks
+
+Create a workflow file (e.g., `.github/workflows/deploy-bicep.yml`) in your repository with the following content. This example uses `workflow_dispatch` for manual triggering:
+
+```yaml
+name: Bicep Deployment Stacks
+
+on:
+  workflow_dispatch:
+    inputs:
+      bicep_action:
+        description: 'Bicep Action'
+        default: deploy
+        type: choice
+        options:
+          - deploy
+          - plan
+      target_environment:
+        description: 'Select environment'
+        required: true
+        type: choice
+        default: dev
+        options:  # options should match your configured environments (e.g., dev, test, prod)
+          - dev
+          - test
+          - prod
+      deployment_scope:
+        description: 'Deployment scope'
+        required: true
+        type: choice
+        default: resourceGroup
+        options:
+          - resourceGroup
+          - subscription
+          - managementGroup
+
+run-name: Bicep ${{ inputs.bicep_action }} (${{ inputs.target_environment }}) by @${{ github.actor }}
+
+permissions:
+  id-token: write # Required for OIDC authentication
+  contents: read  # Required to checkout code
+  pull-requests: write # Required for PR commenting during plan
+
+jobs:
+  call-bicep-deploy:
+    name: "Run bicep ${{ inputs.bicep_action }} for ${{ inputs.target_environment }}"
+    uses: kewalaka/github-azure-iac-templates/.github/workflows/bicep-deploy-template.yml@v1.0
+    with:
+      bicep_action: ${{ inputs.bicep_action }}
+      environment_name_plan: "${{ inputs.target_environment }}_plan"
+      environment_name_apply: "${{ inputs.target_environment }}_apply"
+      deployment_scope: ${{ inputs.deployment_scope }}
+      deployment_stack_name: "${{ inputs.target_environment }}-stack"  # Optional: auto-generated if not provided
+      root_iac_folder_relative_path: "./iac"
+      parameters_file_path: "parameters/${{ inputs.target_environment }}.parameters.json"
+      resource_group_name: "${{ inputs.deployment_scope == 'resourceGroup' && format('rg-{0}', inputs.target_environment) || '' }}"
+      management_group_id: "${{ inputs.deployment_scope == 'managementGroup' && 'your-mg-id' || '' }}"
+      location: "eastus"
+      action_on_unmanage: "detachAll"  # Options: detachAll, deleteAll
+      deny_settings_mode: "none"       # Options: none, denyDelete, denyWriteAndDelete
+    secrets: inherit
+
+```
+
 ## Recommendation: Add Protection Rules
 
 To prevent accidental deployments, configure protection rules on your `-apply` environments:
@@ -103,13 +167,39 @@ Az-Bootstrap performs this step automatically by default.
 
 <a id="optional_features"></a><!-- markdownlint-disable-line MD033 -->
 
-## Optional Variables
+## Optional Variables (Bicep + Terraform)
 
 The following section provides details of how to tune the configuration of the deployment templates.
 
 ### Root folder
 
-The default folder for IaC is `./iac`.  This can be modified using `root_module_folder_relative_path`
+The default folder for IaC is `./iac`.  This can be modified using `root_iac_folder_relative_path`
+
+### Checkov (security scanning)
+
+This is enabled by default, can be disabled using `enable_checkov: false`
+
+Check out the actions [README.md](.github/actions/checkov-terraform/README.md) for more details.
+
+### Infracost (cost estimation)
+
+[Infracost](https://www.infracost.io/) is disabled by default, can be enabled using `enable_infracost: true`, and supplying the INFRACOST_API_KEY via GitHub secrets.
+
+| Secret Name | Description |
+| :---------- | :---------- |
+| `INFRACOST_API_KEY` | API key for Infracost. Sign up for free at infracost.io to get your API key. |
+
+### Unlock private networking resource firewalls
+
+It is possible to specify a list of resource firewalls to unlock during the pipeline run, however we recommend using self-hosted or managed runners instead of this feature:
+
+| Variable Name | Description | Default |
+| :------------ | :---------- | :------ |
+| `EXTRA_FIREWALL_UNLOCKS`  | Comma-separated list of additional `storageaccountname` or `keyvaultname` resources whose firewalls should be temporarily opened. | (none) |
+
+Check out the actions [README.md](.github/actions/azure-unlock-firewall/README.md) for more details.
+
+## Terraform-specific optional variables
 
 ### TFLint, validate and format linting
 
@@ -119,12 +209,6 @@ TFLint can further be configured in the calling repository by
 placing a file `.tflint.hcl` in the IaC root.
 
 Check out the actions [README.md](.github/actions/terraform-lint/README.md) for more details.
-
-### Checkov (security scanning)
-
-This is enabled by default, can be disabled using `enable_checkov: false`
-
-Check out the actions [README.md](.github/actions/checkov-terraform/README.md) for more details.
 
 ### Automatic Terraform backend
 
@@ -152,19 +236,24 @@ These are supplied using TF_VAR_ environment variables, using this:
 | :------------ | :---------- | :------ |
 | `EXTRA_TF_VARS`           | Comma-separated `key=value` pairs passed as additional `-var` arguments to Terraform (e.g., `containertag=<SHA>,subid=<GUID>`)  This should be used sparingly, only for variables that need to be computed by previous steps. | (none) |
 
-### Unlock private networking resource firewalls
+## Bicep-specific optional variables
 
-It is possible to specify a list of resource firewalls to unlock during the pipeline run, however we recommend using self-hosted or managed runners instead of this feature:
+### Unlock private networking resource firewalls (Bicep)
 
-| Variable Name | Description | Default |
-| :------------ | :---------- | :------ |
-| `EXTRA_FIREWALL_UNLOCKS`  | Comma-separated list of additional `storageaccountname` or `keyvaultname` resources whose firewalls should be temporarily opened. | (none) |
+For Bicep deployment stacks, you can customize stack behavior using the following parameters:
 
-Check out the actions [README.md](.github/actions/azure-unlock-firewall/README.md) for more details.
+| Parameter Name | Description | Default | Options |
+| :------------ | :---------- | :------ | :------ |
+| `deployment_stack_name` | Name for the deployment stack | Auto-generated from repository name | Any valid Azure resource name |
+| `action_on_unmanage` | What happens to resources no longer managed by the stack | `detachAll` | `detachAll`, `deleteAll` |
+| `deny_settings_mode` | Operations denied on stack-managed resources | `none` | `none`, `denyDelete`, `denyWriteAndDelete` |
 
-## Use of storage account for Terraform artifacts
+**Note:** Stack names are automatically generated based on the calling repository name if not explicitly provided. The what-if functionality uses standard Azure deployment commands since stacks don't support what-if operations directly.
 
-Azure Blob Storage is used for state and plan artifacts, to provide stronger RBAC than is available via GitHub packages.
+## Design notes
+
+- For Bicep, Azure deployment stacks are used across resource group, subscription, and management group scopes.
+- For Terraform, Azure Blob Storage is used for state and plan artifacts, to provide stronger RBAC than is available via GitHub packages.
 
 ## Using Templates Across Repositories
 
