@@ -110,7 +110,7 @@ jobs:
         
       - name: Unlock Resource Firewalls
         if: ${{ inputs.unlock_resource_firewalls }}
-        uses: kewalaka/github-azure-iac-templates/.github/actions/azure-unlock-firewall@test
+        uses: kewalaka/github-azure-iac-templates/.github/actions/azure-unlock-firewall@main
         with:
           OPERATION: "Allow"
           TF_STATE_SUBSCRIPTION_ID: ${{ env.TF_STATE_SUBSCRIPTION_ID  }}
@@ -120,7 +120,7 @@ jobs:
 
       - name: Check for Terraform Backend Storage and RBAC
         if: ${{ inputs.deploy_backend }}
-        uses: kewalaka/github-azure-iac-templates/.github/actions/terraform-backend@test
+        uses: kewalaka/github-azure-iac-templates/.github/actions/terraform-backend@main
         with:
           resource_group_name: ${{ env.TF_STATE_RESOURCE_GROUP_NAME }}
           storage_account_name: ${{ env.TF_STATE_STORAGE_ACCOUNT_NAME }}
@@ -149,14 +149,14 @@ jobs:
         
       - name: Terraform Lint
         if: ${{ inputs.enable_static_analysis_checks }}
-        uses: kewalaka/github-azure-iac-templates/.github/actions/terraform-lint@test
+        uses: kewalaka/github-azure-iac-templates/.github/actions/terraform-lint@main
         with:
           root_iac_folder_relative_path: ${{ inputs.root_iac_folder_relative_path }}
           tfvars_file: ${{ env.TF_VAR_FILE }}
 
       - name: "Terraform Plan${{ inputs.destroy_resources && ' Destroy' || '' }}"
         id: plan
-        uses: kewalaka/github-azure-iac-templates/.github/actions/terraform-plan@test
+        uses: kewalaka/github-azure-iac-templates/.github/actions/terraform-plan@main
         with:
           root_iac_folder_relative_path: ${{ inputs.root_iac_folder_relative_path }}
           destroy_resources: ${{ inputs.destroy_resources }}
@@ -174,7 +174,7 @@ jobs:
 
       - name: Terraform security scan with Checkov
         if: ${{ inputs.enable_checkov }}
-        uses: kewalaka/github-azure-iac-templates/.github/actions/checkov-terraform@test
+        uses: kewalaka/github-azure-iac-templates/.github/actions/checkov-terraform@main
         with:
           root_iac_folder_relative_path: ${{ inputs.root_iac_folder_relative_path }}
 
@@ -205,7 +205,7 @@ jobs:
 
       - name: Lock Resource Firewalls
         if: ${{ always() && inputs.unlock_resource_firewalls }}
-        uses: kewalaka/github-azure-iac-templates/.github/actions/azure-unlock-firewall@test
+        uses: kewalaka/github-azure-iac-templates/.github/actions/azure-unlock-firewall@main
         with:
           OPERATION: "Deny"
           TF_STATE_SUBSCRIPTION_ID: ${{ env.TF_STATE_SUBSCRIPTION_ID  }}
