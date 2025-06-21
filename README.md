@@ -179,6 +179,8 @@ The default folder for IaC is `./iac`.  This can be modified using `root_iac_fol
 
 This is enabled by default, can be disabled using `enable_checkov: false`
 
+Security scanning is automatically skipped when performing destroy operations (`destroy_resources: true` or `terraform_action: destroy`).
+
 Check out the actions [README.md](.github/actions/checkov-terraform/README.md) for more details.
 
 ### Infracost (cost estimation)
@@ -204,6 +206,8 @@ Check out the actions [README.md](.github/actions/azure-unlock-firewall/README.m
 ### TFLint, validate and format linting
 
 This is enabled by default, can be disabled using `enable_static_analysis_checks: false`
+
+These checks are automatically skipped when performing destroy operations (`destroy_resources: true` or `terraform_action: destroy`).
 
 TFLint can further be configured in the calling repository by
 placing a file `.tflint.hcl` in the IaC root.

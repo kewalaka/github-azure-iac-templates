@@ -148,7 +148,7 @@ jobs:
           eval $TF_INIT_CMD
         
       - name: Terraform Lint
-        if: ${{ inputs.enable_static_analysis_checks }}
+        if: ${{ inputs.enable_static_analysis_checks && !inputs.destroy_resources }}
         uses: kewalaka/github-azure-iac-templates/.github/actions/terraform-lint@main
         with:
           root_iac_folder_relative_path: ${{ inputs.root_iac_folder_relative_path }}
@@ -173,7 +173,7 @@ jobs:
           github_token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Terraform security scan with Checkov
-        if: ${{ inputs.enable_checkov }}
+        if: ${{ inputs.enable_checkov && !inputs.destroy_resources }}
         uses: kewalaka/github-azure-iac-templates/.github/actions/checkov-terraform@main
         with:
           root_iac_folder_relative_path: ${{ inputs.root_iac_folder_relative_path }}
