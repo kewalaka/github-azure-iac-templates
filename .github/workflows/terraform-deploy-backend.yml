@@ -36,7 +36,7 @@ jobs:
           ARM_USE_AZUREAD: true
 
       - name: Deploy Terraform Backend
-        uses: kewalaka/github-azure-iac-templates/.github/actions/terraform-backend@main
+        uses: kewalaka/github-azure-iac-templates/.github/actions/terraform-backend@test
         with:
           resource_group_name: ${{ env.tf_state_resource_group_name }}
           storage_account_name: ${{ env.tf_state_storage_account_name }}
