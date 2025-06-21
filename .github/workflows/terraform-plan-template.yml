@@ -174,7 +174,7 @@ jobs:
 
       - name: Terraform security scan with Checkov
         if: ${{ inputs.enable_checkov }}
-        uses: kewalaka/github-azure-iac-templates/.github/actions/checkov-terraform@feat/checkov-fixes
+        uses: kewalaka/github-azure-iac-templates/.github/actions/checkov-terraform@test
         with:
           root_iac_folder_relative_path: ${{ inputs.root_iac_folder_relative_path }}
 
