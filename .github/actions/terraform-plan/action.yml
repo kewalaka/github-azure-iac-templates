@@ -88,17 +88,12 @@ runs:
         PLAN_SUMMARY=$(terraform show -json tfplan | tfplandoc generate -)
 
         # Output summary to Actions log
-        {
-        echo "--- Plan Summary ---"
-        echo "$PLAN_SUMMARY"
-        echo "--- End Plan Summary ---"
-        } | tee -a $GITHUB_STEP_SUMMARY
+        echo "$PLAN_SUMMARY" | tee -a $GITHUB_STEP_SUMMARY
 
         # Set the multiline output for this step
         echo "summary<<EOF" >> $GITHUB_OUTPUT
         echo "$PLAN_SUMMARY" >> $GITHUB_OUTPUT
         echo "EOF" >> $GITHUB_OUTPUT
-        echo "Plan summary set as step output."
 
     - name: Post Plan Summary to PR
       if: inputs.github_token != '' && github.event_name == 'pull_request'
