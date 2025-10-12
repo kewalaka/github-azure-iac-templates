@@ -1,0 +1,57 @@
+name: Terraform Init
+id: terraform-init
+description: Initialize Terraform with backend configuration
+
+inputs:
+  root_iac_folder_relative_path:
+    description: 'Relative path to root of Terraform code (usually ./iac)'
+    required: false
+    default: './iac'
+  backend_config:
+    description: 'Whether to configure backend (true) or use -backend=false (false)'
+    required: false
+    default: 'true'
+  # Backend configuration - only used if backend_config is true
+  tf_state_subscription_id:
+    description: 'Azure subscription ID for Terraform state storage'
+    required: false
+    default: ''
+  tf_state_resource_group_name:
+    description: 'Resource group name containing the Terraform state storage account'
+    required: false
+    default: ''
+  tf_state_storage_account_name:
+    description: 'Storage account name for Terraform state'
+    required: false
+    default: ''
+  tf_state_storage_container_name:
+    description: 'Container name for Terraform state'
+    required: false
+    default: 'tfstate'
+  tf_state_storage_container_key:
+    description: 'Key (file name) for Terraform state'
+    required: false
+    default: 'terraform.tfstate'
+
+runs:
+  using: composite
+  steps:
+    - name: Terraform Init
+      shell: bash
+      working-directory: ${{ inputs.root_iac_folder_relative_path }}
+      run: |
+        if [ "${{ inputs.backend_config }}" = "true" ]; then
+          # Initialize with backend configuration
+          TF_INIT_CMD="terraform init \
+            -backend-config=\"subscription_id=${{ inputs.tf_state_subscription_id }}\" \
+            -backend-config=\"resource_group_name=${{ inputs.tf_state_resource_group_name }}\" \
+            -backend-config=\"storage_account_name=${{ inputs.tf_state_storage_account_name }}\" \
+            -backend-config=\"container_name=${{ inputs.tf_state_storage_container_name }}\" \
+            -backend-config=\"key=${{ inputs.tf_state_storage_container_key }}\""
+        else
+          # Initialize without backend (for validation/linting)
+          TF_INIT_CMD="terraform init -backend=false"
+        fi
+
+        echo "About to run: $TF_INIT_CMD"
+        eval $TF_INIT_CMD

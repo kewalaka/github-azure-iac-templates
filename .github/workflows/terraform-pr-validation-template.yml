@@ -69,11 +69,10 @@ jobs:
             terraform_version: ${{ inputs.terraform_cli_version }}
 
       - name: Terraform Init (for validation)
-        shell: bash
-        working-directory: ${{ inputs.root_iac_folder_relative_path }}
-        run: |
-          # Initialize without backend for validation
-          terraform init -backend=false
+        uses: kewalaka/github-azure-iac-templates/.github/actions/terraform-init@main
+        with:
+          root_iac_folder_relative_path: ${{ inputs.root_iac_folder_relative_path }}
+          backend_config: 'false'
 
       - name: Terraform Lint
         if: ${{ inputs.enable_static_analysis_checks }}
