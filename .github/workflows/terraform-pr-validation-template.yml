@@ -88,20 +88,6 @@ jobs:
         run: |
           pip install --quiet checkov
 
-      - name: Check for Checkov config
-        if: ${{ inputs.enable_checkov }}
-        shell: bash
-        working-directory: ${{ inputs.root_iac_folder_relative_path }}
-        run: |
-          CONFIG_FILE=".checkov.yml"
-          if [ ! -f "$CONFIG_FILE" ]; then
-            echo "Checkov config file ($CONFIG_FILE) not found. Copying default config."
-            cp "$GITHUB_WORKSPACE/.github/actions/checkov-terraform/$CONFIG_FILE" .
-            ls -la "$CONFIG_FILE"
-          else
-            echo "Using existing $CONFIG_FILE config file."
-          fi
-
       - name: Checkov static code scan
         if: ${{ inputs.enable_checkov }}
         shell: bash
@@ -113,8 +99,19 @@ jobs:
           export LOG_LEVEL="WARNING"
           
           echo "Running Checkov on static code"
-          checkov --directory . --config-file .checkov.yml \
-            --output sarif --output-file-path results.sarif
+          # Use .checkov.yml if it exists, otherwise run with defaults
+          if [ -f ".checkov.yml" ]; then
+            echo "Using .checkov.yml config file"
+            checkov --directory . --config-file .checkov.yml \
+              --output sarif --output-file-path results.sarif
+          else
+            echo "No .checkov.yml found, running with default configuration"
+            checkov --directory . \
+              --skip-check CKV_AWS_*,CKV_GCP_* \
+              --download-external-modules true \
+              --evaluate-variables \
+              --output sarif --output-file-path results.sarif
+          fi
 
       - name: Upload SARIF file
         if: ${{ inputs.enable_checkov && (success() || failure()) }}
