@@ -90,6 +90,65 @@ jobs:
 
 ```
 
+### Pull Request Validation Workflow
+
+For PR validation, create a workflow file (e.g., `.github/workflows/pr-validation.yml`) that runs static checks on all PRs and optionally runs a terraform plan with approval:
+
+```yaml
+name: Terraform PR Validation
+
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - 'iac/**'
+      - '.github/workflows/**'
+
+permissions:
+  contents: read
+  pull-requests: write
+  security-events: write
+  id-token: write
+
+jobs:
+  # Option 1: Static checks only (no Azure authentication required)
+  static-checks-only:
+    name: "PR Validation - Static Checks"
+    uses: kewalaka/github-azure-iac-templates/.github/workflows/terraform-pr-validation-template.yml@main
+    with:
+      root_iac_folder_relative_path: './iac'
+      enable_static_analysis_checks: true
+      enable_checkov: true
+    secrets: inherit
+
+  # Option 2: Static checks + optional plan (requires environment approval)
+  # Uncomment to enable optional plan with approval gate
+  # static-checks-with-optional-plan:
+  #   name: "PR Validation with Optional Plan"
+  #   uses: kewalaka/github-azure-iac-templates/.github/workflows/terraform-pr-validation-template.yml@main
+  #   with:
+  #     root_iac_folder_relative_path: './iac'
+  #     enable_static_analysis_checks: true
+  #     enable_checkov: true
+  #     environment_name_plan: 'dev-iac-plan'  # Set this to enable optional plan
+  #     tfvars_file: './environments/dev.terraform.tfvars'
+  #   secrets: inherit
+```
+
+**How it works:**
+
+- **Static checks** (validate, tflint, checkov) run on every PR without requiring Azure authentication
+- **Optional plan** runs only if `environment_name_plan` is provided
+  - Uses GitHub environment protection rules as an approval gate
+  - Posts plan summary to PR for reviewer visibility
+  - Requires Azure authentication via OIDC
+
+This pattern enables:
+- Fast feedback on code quality issues
+- Optional infrastructure preview when needed
+- Controlled access via environment approvals
+
 ### Example Usage - Bicep Deployment Stacks
 
 Create a workflow file (e.g., `.github/workflows/deploy-bicep.yml`) in your repository with the following content. This example uses `workflow_dispatch` for manual triggering:
