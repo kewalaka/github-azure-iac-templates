@@ -1,0 +1,145 @@
+name: Terraform PR validation template
+on:
+  workflow_call:
+    inputs:
+      # optional inputs
+      environment_name_plan:
+        description: 'Optional: The GitHub environment for plan approval. If provided, terraform plan will run after static checks. If not provided, only static checks run.'
+        type: string
+        default: ''
+      tfvars_file:
+        description: 'Optional: TFvars file for plan step. Required if environment_name_plan is provided.'
+        type: string
+        default: ''
+      azure_subscription_id:
+        description: 'Azure Subscription ID for plan (overrides env.ARM_SUBSCRIPTION_ID)'
+        required: false
+        type: string
+        default: ''
+      enable_checkov:
+        description: 'Enable Checkov scan of the terraform code'
+        type: boolean
+        default: true
+      enable_static_analysis_checks:
+        description: 'Enable TFLint, terraform validate & format checks'
+        type: boolean
+        default: true
+      root_iac_folder_relative_path:
+        description: 'Relative path to root of Terraform code (usually ./iac)'
+        default: './iac'
+        type: string
+      runner_name:
+        description: 'The name of the runner pool to run on'
+        type: string
+        default: 'ubuntu-latest'
+      terraform_cli_version:
+        description: 'Terraform CLI Version'
+        default: 'latest'
+        type: string
+      tf_state_storage_container_key:
+        description: 'Backend Azure Storage Account Container key for Terraform state, e.g. terraform.tfstate'
+        default: 'terraform.tfstate'
+        type: string
+      unlock_resource_firewalls:
+        description: 'Unlock firewall for tf state storage and any extra unlocks'
+        default: false
+        type: boolean
+
+permissions:
+  contents: read
+  pull-requests: write
+  security-events: write
+  id-token: write
+
+jobs:
+  static-checks:
+    name: "Static Code Analysis"
+    runs-on: ${{ inputs.runner_name }}
+    permissions:
+      contents: read
+      security-events: write
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Install Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+            terraform_wrapper: false
+            terraform_version: ${{ inputs.terraform_cli_version }}
+
+      - name: Terraform Init (for validation)
+        shell: bash
+        working-directory: ${{ inputs.root_iac_folder_relative_path }}
+        run: |
+          # Initialize without backend for validation
+          terraform init -backend=false
+
+      - name: Terraform Lint
+        if: ${{ inputs.enable_static_analysis_checks }}
+        uses: kewalaka/github-azure-iac-templates/.github/actions/terraform-lint@main
+        with:
+          root_iac_folder_relative_path: ${{ inputs.root_iac_folder_relative_path }}
+          tfvars_file: ${{ inputs.tfvars_file }}
+
+      # Checkov scan without plan - just scan the code
+      - name: Install Checkov
+        if: ${{ inputs.enable_checkov }}
+        shell: bash
+        run: |
+          pip install --quiet checkov
+
+      - name: Check for Checkov config
+        if: ${{ inputs.enable_checkov }}
+        shell: bash
+        working-directory: ${{ inputs.root_iac_folder_relative_path }}
+        run: |
+          CONFIG_FILE=".checkov.yml"
+          if [ ! -f "$CONFIG_FILE" ]; then
+            echo "Checkov config file ($CONFIG_FILE) not found. Copying default config."
+            cp "$GITHUB_WORKSPACE/.github/actions/checkov-terraform/$CONFIG_FILE" .
+            ls -la "$CONFIG_FILE"
+          else
+            echo "Using existing $CONFIG_FILE config file."
+          fi
+
+      - name: Checkov static code scan
+        if: ${{ inputs.enable_checkov }}
+        shell: bash
+        working-directory: ${{ inputs.root_iac_folder_relative_path }}
+        run: |
+          export IGNORE_HIDDEN_DIRECTORIES=true
+          export IGNORED_DIRECTORIES=".terraform"
+          export CHECK_FAIL_LEVEL="ERROR"
+          export LOG_LEVEL="WARNING"
+          
+          echo "Running Checkov on static code"
+          checkov --directory . --config-file .checkov.yml \
+            --output sarif --output-file-path results.sarif
+
+      - name: Upload SARIF file
+        if: ${{ inputs.enable_checkov && (success() || failure()) }}
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          category: iac-static
+          sarif_file: ${{ inputs.root_iac_folder_relative_path }}/results.sarif
+
+  terraform-plan:
+    name: "Terraform Plan (Optional)"
+    needs: static-checks
+    if: ${{ inputs.environment_name_plan != '' }}
+    uses: ./.github/workflows/terraform-plan-template.yml
+    with:
+      azure_subscription_id: ${{ inputs.azure_subscription_id }}
+      destroy_resources: false
+      enable_checkov: ${{ inputs.enable_checkov }}
+      enable_static_analysis_checks: false  # Already done in static-checks job
+      root_iac_folder_relative_path: ${{ inputs.root_iac_folder_relative_path }}
+      runner_name: ${{ inputs.runner_name }}
+      target_environment: ${{ inputs.environment_name_plan }}
+      terraform_cli_version: ${{ inputs.terraform_cli_version }}
+      tf_state_storage_container_key: ${{ inputs.tf_state_storage_container_key }}
+      tfvars_file: ${{ inputs.tfvars_file }}
+      unlock_resource_firewalls: ${{ inputs.unlock_resource_firewalls }}
+      upload_artifact: false  # No artifact needed for PR validation
+    secrets: inherit
