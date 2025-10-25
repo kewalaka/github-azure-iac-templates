@@ -23,7 +23,7 @@ jobs:
     environment: "${{ inputs.target_environment }}"
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Login to Azure
         uses: azure/login@v2
