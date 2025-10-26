@@ -129,7 +129,7 @@ jobs:
       azure_subscription_id: ${{ inputs.azure_subscription_id }}
       destroy_resources: false
       enable_checkov: ${{ inputs.enable_checkov }}
-      enable_static_analysis_checks: false  # Already done in static-checks job
+      enable_static_analysis_checks: false  # Static checks are only performed in the static-checks job if 'enable_static_analysis_checks' is true in the workflow call
       root_iac_folder_relative_path: ${{ inputs.root_iac_folder_relative_path }}
       runner_name: ${{ inputs.runner_name }}
       target_environment: ${{ inputs.environment_name_plan }}
