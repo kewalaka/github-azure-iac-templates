@@ -88,4 +88,12 @@ Use `microsoft.docs.mcp` for:
 4. Simplify conditional logic
 5. Remove unnecessary dependencies
 
+## Cleanup Guidelines
+
+1. **Delete, don’t hoard**: remove deprecated files, disabled workflows, commented-out code, and unused abstractions.
+2. **No “old vs new” sections** in code or docs. The active codebase is the present; git history provides the past.
+3. **Avoid leaving “deprecated/legacy/old way” comments behind**; remove the old implementation entirely.
+4. **Keep README/docs concise and current**. Don’t include migration notes unless they already exist or the user requests them.
+5. **Remove unused dependencies and config**. If a tool isn’t used, delete its config.
+
 Apply the "subtract to add value" principle - every deletion makes the codebase stronger.
