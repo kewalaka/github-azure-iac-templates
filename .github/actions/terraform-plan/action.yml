@@ -4,7 +4,7 @@ description: Runs the Terraform Plan
 
 inputs:
   root_iac_folder_relative_path:
-    description: 'Relative path to root of Terraform code (usually ./iac)'
+    description: 'Relative path to root of Terraform code (usually ./infra)'
     required: true
   tfvars_file:
     description: 'Comma seperated list of paths to optional tfvars files. Paths are relative to the terraform root path.'

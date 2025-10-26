@@ -4,9 +4,9 @@ description: Initialize Terraform with backend configuration
 
 inputs:
   root_iac_folder_relative_path:
-    description: 'Relative path to root of Terraform code (usually ./iac)'
+    description: 'Relative path to root of Terraform code (usually ./infra)'
     required: false
-    default: './iac'
+    default: './infra'
   backend_config:
     description: 'Whether to configure backend (true) or use -backend=false (false)'
     required: false

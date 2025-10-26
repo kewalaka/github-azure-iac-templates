@@ -1,14 +1,17 @@
 # Pull Request Summary: Add PR Validation Workflow
 
 ## Overview
+
 This PR implements a comprehensive PR validation workflow for Terraform infrastructure as code, addressing the need for "cheap" static validation and optional infrastructure plans with approval gates.
 
 ## What's New
 
 ### 1. New PR Validation Workflow
+
 **File:** `.github/workflows/terraform-pr-validation-template.yml`
 
 A flexible, two-stage validation workflow:
+
 - **Stage 1 (Static Checks):** Always runs, no Azure auth required
   - Terraform validate
   - Terraform format check
@@ -21,25 +24,32 @@ A flexible, two-stage validation workflow:
   - Enhanced security scanning on plan output
 
 ### 2. Code Consolidation - terraform-init Action
-**Files:** 
+
+#### Files
+
 - `.github/actions/terraform-init/action.yml`
 - `.github/actions/terraform-init/README.md`
 
 New composite action that centralizes Terraform initialization:
+
 - Supports both backend and non-backend modes
 - Used by 3 workflows (plan, apply, pr-validation)
 - Eliminates ~40 lines of duplicated code
 - Single source of truth for init logic
 
 ### 3. Updated Workflows
+
 **Files:**
+
 - `.github/workflows/terraform-plan-template.yml`
 - `.github/workflows/terraform-apply-template.yml`
 
 Both workflows now use the new `terraform-init` action instead of inline shell scripts.
 
 ### 4. Comprehensive Documentation
+
 **Files:**
+
 - `README.md` - Added PR validation section with examples
 - `.github/workflows/EXAMPLES.md` - Detailed usage patterns
 - `.github/workflows/PR_VALIDATION_GUIDE.md` - Implementation details
@@ -49,7 +59,8 @@ Both workflows now use the new `terraform-init` action instead of inline shell s
 
 ### For Consuming Repositories
 
-**Option 1: Static checks only (recommended for most PRs)**
+#### Option 1: Static checks only (recommended for most PRs)**
+
 ```yaml
 name: PR Validation
 
@@ -61,11 +72,12 @@ jobs:
   validate:
     uses: kewalaka/github-azure-iac-templates/.github/workflows/terraform-pr-validation-template.yml@main
     with:
-      root_iac_folder_relative_path: './iac'
+      root_iac_folder_relative_path: './infra'
     secrets: inherit
 ```
 
-**Option 2: Static checks + optional plan (with approval)**
+#### Option 2: Static checks + optional plan (with approval)**
+
 ```yaml
 name: PR Validation with Plan
 
@@ -83,7 +95,7 @@ jobs:
   validate:
     uses: kewalaka/github-azure-iac-templates/.github/workflows/terraform-pr-validation-template.yml@main
     with:
-      root_iac_folder_relative_path: './iac'
+      root_iac_folder_relative_path: './infra'
       environment_name_plan: 'dev-iac-plan'
       tfvars_file: './environments/dev.terraform.tfvars'
     secrets: inherit
@@ -92,6 +104,7 @@ jobs:
 ## Benefits
 
 ### For Users
+
 1. **Fast Feedback:** Static checks complete in 1-3 minutes
 2. **Cost-Effective:** No Azure resources consumed for basic validation
 3. **Flexible:** Easy to enable/disable plan step
@@ -99,6 +112,7 @@ jobs:
 5. **Informative:** Plan summaries posted as PR comments
 
 ### For Maintainers
+
 1. **Reduced Duplication:** Consolidated initialization logic
 2. **Easier Maintenance:** Changes in one place affect all workflows
 3. **Consistent Behavior:** All workflows use same init process
@@ -107,6 +121,7 @@ jobs:
 ## Technical Details
 
 ### Changes Summary
+
 - **Files Added:** 6 (1 workflow, 1 action, 4 documentation files)
 - **Files Modified:** 3 (README.md, 2 workflow templates)
 - **Lines Added:** +664
@@ -114,6 +129,7 @@ jobs:
 - **Net Change:** +641 lines
 
 ### Validation
+
 - ✅ All YAML files validated
 - ✅ All workflows syntactically correct
 - ✅ All actions syntactically correct
@@ -134,6 +150,7 @@ For consuming repositories adopting this workflow:
 Existing consumers using `terraform-deploy-template.yml` for PR validation can migrate:
 
 **Before:**
+
 ```yaml
 uses: .../terraform-deploy-template.yml@main
 with:
@@ -143,6 +160,7 @@ with:
 ```
 
 **After:**
+
 ```yaml
 uses: .../terraform-pr-validation-template.yml@main
 with:
@@ -151,23 +169,30 @@ with:
 ```
 
 ## Breaking Changes
+
 None. All existing workflows continue to work as before.
 
 ## Future Enhancements
+
 Potential improvements identified but not implemented:
+
 - Composite action for Azure login + firewall unlock pattern
 - Support for parallel validation of multiple environments
 - Integration with Infracost for cost estimation in PRs
 
 ## Documentation
+
 See these files for detailed information:
+
 - `README.md` - Quick start and basic examples
 - `.github/workflows/EXAMPLES.md` - Comprehensive usage patterns
 - `.github/workflows/PR_VALIDATION_GUIDE.md` - Implementation details and architecture
 - `.github/workflows/ARCHITECTURE.md` - Visual diagrams and flow charts
 
 ## Acknowledgments
+
 This implementation follows the design principles established in the repository:
+
 - Two-environment strategy (plan/apply)
 - Azure Blob Storage for artifacts (not GitHub artifacts)
 - OIDC authentication

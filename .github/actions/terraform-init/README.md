@@ -12,7 +12,7 @@ This composite action initializes Terraform with optional backend configuration.
 
 | Input | Description | Required | Default |
 |-------|-------------|----------|---------|
-| `root_iac_folder_relative_path` | Relative path to root of Terraform code | No | `./iac` |
+| `root_iac_folder_relative_path` | Relative path to root of Terraform code | No | `./infra` |
 | `backend_config` | Whether to configure backend (true) or use -backend=false (false) | No | `true` |
 | `tf_state_subscription_id` | Azure subscription ID for Terraform state storage | No | `''` |
 | `tf_state_resource_group_name` | Resource group name containing the Terraform state storage account | No | `''` |
@@ -28,7 +28,7 @@ This composite action initializes Terraform with optional backend configuration.
 - name: Terraform Init
   uses: kewalaka/github-azure-iac-templates/.github/actions/terraform-init@main
   with:
-    root_iac_folder_relative_path: './iac'
+    root_iac_folder_relative_path: './infra'
     backend_config: 'true'
     tf_state_subscription_id: ${{ env.TF_STATE_SUBSCRIPTION_ID }}
     tf_state_resource_group_name: ${{ env.TF_STATE_RESOURCE_GROUP_NAME }}
@@ -43,7 +43,7 @@ This composite action initializes Terraform with optional backend configuration.
 - name: Terraform Init
   uses: kewalaka/github-azure-iac-templates/.github/actions/terraform-init@main
   with:
-    root_iac_folder_relative_path: './iac'
+    root_iac_folder_relative_path: './infra'
     backend_config: 'false'
 ```
 
