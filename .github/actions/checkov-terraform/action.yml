@@ -4,7 +4,7 @@ description: Runs a scan of terraform with Checkov
 
 inputs:
   root_iac_folder_relative_path:
-    description: 'Relative path to root of Terraform code (usually ./infra)'
+    description: 'Relative path to root of Terraform code (usually ./iac)'
     required: true
   checkov_environment_variables:
     description: 'JSON object of environment variables to export before running Checkov. Defaults are provided.'

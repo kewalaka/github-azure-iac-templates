@@ -72,7 +72,7 @@ jobs:
   validate:
     uses: kewalaka/github-azure-iac-templates/.github/workflows/terraform-pr-validation-template.yml@main
     with:
-      root_iac_folder_relative_path: './infra'
+      root_iac_folder_relative_path: './iac'
     secrets: inherit
 ```
 
@@ -95,7 +95,7 @@ jobs:
   validate:
     uses: kewalaka/github-azure-iac-templates/.github/workflows/terraform-pr-validation-template.yml@main
     with:
-      root_iac_folder_relative_path: './infra'
+      root_iac_folder_relative_path: './iac'
       environment_name_plan: 'dev-iac-plan'
       tfvars_file: './environments/dev.terraform.tfvars'
     secrets: inherit

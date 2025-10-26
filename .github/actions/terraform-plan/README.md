@@ -8,7 +8,7 @@ Optionally, if triggered by a `pull_request` event and provided with a suitable 
 
 | Name                  | Required | Description                                                                                                | Default   |
 | :-------------------- | :------- | :--------------------------------------------------------------------------------------------------------- | :-------- |
-| `root_iac_folder_relative_path` | `true`   | Relative path to the root of the Terraform code (usually `./infra`).                                         |           |
+| `root_iac_folder_relative_path` | `true`   | Relative path to the root of the Terraform code (usually `./iac`).                                         |           |
 | `tfvars_file`         | `true`   | Comma-separated list of paths to optional tfvars files. Paths are relative to the `root_iac_folder_relative_path`. |           |
 | `destroy_resources`    | `false`  | Set to `true` to generate a destroy plan instead of a standard plan.                                       | `'false'` |
 | `github_token`        | `false`  | GitHub token (`secrets.GITHUB_TOKEN`) used for posting plan summaries to Pull Requests. Required for PR commenting. | `''`      |

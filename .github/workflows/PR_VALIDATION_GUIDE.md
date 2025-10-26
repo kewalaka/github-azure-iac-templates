@@ -66,7 +66,7 @@ Created a reusable composite action for Terraform initialization that:
 ```yaml
 uses: kewalaka/github-azure-iac-templates/.github/workflows/terraform-pr-validation-template.yml@main
 with:
-  root_iac_folder_relative_path: './infra'
+  root_iac_folder_relative_path: './iac'
   # No environment_name_plan = no plan step
 ```
 
@@ -75,7 +75,7 @@ with:
 ```yaml
 uses: kewalaka/github-azure-iac-templates/.github/workflows/terraform-pr-validation-template.yml@main
 with:
-  root_iac_folder_relative_path: './infra'
+  root_iac_folder_relative_path: './iac'
   environment_name_plan: 'dev-iac-plan'  # Enables plan with approval
   tfvars_file: './environments/dev.terraform.tfvars'
 ```
@@ -90,14 +90,14 @@ jobs:
     # Always run static checks
     uses: .../terraform-pr-validation-template.yml@main
     with:
-      root_iac_folder_relative_path: './infra'
+      root_iac_folder_relative_path: './iac'
   
   conditional-plan:
     # Only run if PR has "run-plan" label
     if: contains(github.event.pull_request.labels.*.name, 'run-plan')
     uses: .../terraform-pr-validation-template.yml@main
     with:
-      root_iac_folder_relative_path: './infra'
+      root_iac_folder_relative_path: './iac'
       environment_name_plan: 'dev-iac-plan'
       tfvars_file: './environments/dev.terraform.tfvars'
 ```

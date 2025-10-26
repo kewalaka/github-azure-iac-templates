@@ -5,7 +5,7 @@ description: Runs Terrform Linting checks
 inputs:
   root_iac_folder_relative_path:
     description: 'Relative path to root of Terraform code'
-    default: './infra'
+    default: './iac'
     type: string
   tfvars_file:
     description: 'Comma seperated list of paths to optional tfvars files. Paths are relative to the terraform root path.'

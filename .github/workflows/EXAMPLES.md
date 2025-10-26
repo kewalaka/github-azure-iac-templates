@@ -27,7 +27,7 @@ jobs:
     name: "PR Validation - Static Checks"
     uses: kewalaka/github-azure-iac-templates/.github/workflows/terraform-pr-validation-template.yml@main
     with:
-      root_iac_folder_relative_path: './infra'
+      root_iac_folder_relative_path: './iac'
       enable_static_analysis_checks: true
       enable_checkov: true
     secrets: inherit
@@ -59,7 +59,7 @@ jobs:
     name: "PR Validation with Optional Plan"
     uses: kewalaka/github-azure-iac-templates/.github/workflows/terraform-pr-validation-template.yml@main
     with:
-      root_iac_folder_relative_path: './infra'
+      root_iac_folder_relative_path: './iac'
       enable_static_analysis_checks: true
       enable_checkov: true
       # Providing environment_name_plan enables the optional plan step
@@ -96,7 +96,7 @@ jobs:
     name: "Static Code Validation"
     uses: kewalaka/github-azure-iac-templates/.github/workflows/terraform-pr-validation-template.yml@main
     with:
-      root_iac_folder_relative_path: './infra'
+      root_iac_folder_relative_path: './iac'
       enable_static_analysis_checks: true
       enable_checkov: true
       # No environment_name_plan = no plan step
@@ -109,7 +109,7 @@ jobs:
     if: contains(github.event.pull_request.labels.*.name, 'run-plan')
     uses: kewalaka/github-azure-iac-templates/.github/workflows/terraform-pr-validation-template.yml@main
     with:
-      root_iac_folder_relative_path: './infra'
+      root_iac_folder_relative_path: './iac'
       enable_static_analysis_checks: false  # Already done in static-validation
       enable_checkov: false  # Already done in static-validation
       environment_name_plan: 'dev-iac-plan'

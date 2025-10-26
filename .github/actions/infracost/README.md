@@ -26,7 +26,7 @@ When enabled, cost estimates are automatically included in the plan summary post
 
 | Input | Description | Required | Default |
 |-------|-------------|----------|---------|
-| `terraform_root_path` | Relative path to root of Terraform code (usually ./infra) | Yes | - |
+| `terraform_root_path` | Relative path to root of Terraform code (usually ./iac) | Yes | - |
 | `tfvars_file` | Comma separated list of paths to optional tfvars files. Paths are relative to the terraform root path. | No | - |
 | `infracost_api_key` | Infracost API key for cost estimation | Yes | - |
 | `github_token` | Authenticate for posting to PR comments | No | - |
@@ -50,7 +50,7 @@ When enabled, cost estimates are automatically included in the plan summary post
   id: infracost
   uses: ./.github/actions/infracost
   with:
-    terraform_root_path: './infra'
+    terraform_root_path: './iac'
     tfvars_file: 'dev.tfvars,common.tfvars'
     infracost_api_key: ${{ secrets.INFRACOST_API_KEY }}
 

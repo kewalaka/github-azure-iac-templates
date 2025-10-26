@@ -6,7 +6,7 @@ This action is run just after a terraform init and before the plan and runs tfli
 
 | Name                  | Required | Description                  | Default |
 | :-------------------- | :------- | :--------------------------- | :------ |
-| `root_iac_folder_relative_path` | `true`   | Relative path to root of Terraform code (usually `./infra`).  |  |
+| `root_iac_folder_relative_path` | `true`   | Relative path to root of Terraform code (usually `./iac`).  |  |
 | `tfvars_file`         | `true`   | Comma-separated list of paths to optional tfvars files. Paths are relative to the `root_iac_folder_relative_path`. | |
 
 ## Outputs

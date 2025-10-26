@@ -13,7 +13,7 @@ on:
         description: 'The GitHub environment to run the apply job against.  e.g. dev-iac-apply'
         type: string
       tfvars_file:
-        description: 'TFvars file that has environment specified settings. Paths are relative to the terraform root path (e.g. ./infra/environments/dev.tfvars)'
+        description: 'TFvars file that has environment specified settings. Paths are relative to the terraform root path (e.g. ./iac/environments/dev.tfvars)'
         type: string
 
       # optional inputs
@@ -42,8 +42,8 @@ on:
         type: boolean
         default: true
       root_iac_folder_relative_path:
-        description: 'Relative path to root of Terraform code (usually ./infra)'
-        default: './infra'
+        description: 'Relative path to root of Terraform code (usually ./iac)'
+        default: './iac'
         type: string
       runner_name:
         description: 'The name of the runner pool to run on'

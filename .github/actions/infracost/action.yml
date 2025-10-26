@@ -4,7 +4,7 @@ description: Runs Infracost to generate cost estimates for Terraform changes
 
 inputs:
   terraform_root_path:
-    description: 'Relative path to root of Terraform code (usually ./infra)'
+    description: 'Relative path to root of Terraform code (usually ./iac)'
     required: true
   tfvars_file:
     description: 'Comma separated list of paths to optional tfvars files. Paths are relative to the terraform root path.'
