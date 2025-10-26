@@ -58,8 +58,8 @@ on:
         description: 'Path to bicep parameters file. Path is relative to the bicep root path.'
         type: string
       root_iac_folder_relative_path:
-        description: 'Relative path to root of Bicep code (usually ./iac)'
-        default: './iac'
+        description: 'Relative path to root of Bicep code (usually ./infra)'
+        default: './infra'
         type: string
       runner_name:
         description: 'The name of the runner pool to run on'

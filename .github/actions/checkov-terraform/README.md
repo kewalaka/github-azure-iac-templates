@@ -6,7 +6,7 @@ This action scans the terraform plan output for security issues with resource cr
 
 | Name                                   | Required | Description                                                                                      | Default         |
 | :-------------------------------------- | :------- | :----------------------------------------------------------------------------------------------- | :-------------- |
-| `root_iac_folder_relative_path`      | `true`   | Relative path to root of Terraform code (usually `./iac`).                                       |                 |
+| `root_iac_folder_relative_path`      | `true`   | Relative path to root of Terraform code (usually `./infra`).                                       |                 |
 | `tfvars_file`                          | `false`  | Comma separated list of paths to optional tfvars files. Paths are relative to the terraform root. | `""`            |
 | `checkov_environment_variables`         | `false`  | JSON object of additional environment variables to export before running Checkov.                 | `{}`            |
 
@@ -87,7 +87,7 @@ Otherwise create a `.checkov.yml` file at the root level of the repository (not 
 ```text
 Check: CKV_SECRET_6: "Base64 High Entropy String"
  FAILED for resource: ba74cf8e3b29d889a051eb720a87c8962fb4b315
-Error:  File: /iac/tfplan.json:442-443
+Error:  File: /infra/tfplan.json:442-443
 ```
 
 ```yml
