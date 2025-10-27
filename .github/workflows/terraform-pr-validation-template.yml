@@ -60,7 +60,7 @@ jobs:
       security-events: write
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Install Terraform
         uses: hashicorp/setup-terraform@v3
